@@ -3,11 +3,11 @@ import shutil
 import json
 
 osp = os.path.join
-src_dir = '0_fill_template'
-syn_dir = '3_filled_json_data'
+src_dir = 'OUT_DIR/0_export_pdf_meta'
+syn_dir = 'TEMPLATE_PDF/synthetic_json'
 pdf_names = os.listdir(syn_dir)
 pdf_names = [i for i in pdf_names if i.endswith('.pdf')]
-out_dir = '3_new_filled_json_data'
+out_dir = 'OUT_DIR/fixed_keys'
 shutil.rmtree(out_dir, ignore_errors=True)
 os.makedirs(out_dir)
 

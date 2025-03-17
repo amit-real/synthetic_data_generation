@@ -171,8 +171,6 @@ def main():
             print(f"Page {page_number_syn}:")
             
             for idx2, json_entry in enumerate(syn_json):
-                if idx2>10:
-                    break
                 json_out_path = osp(out_dir, 'json', pdf_name, f'{page_number_syn}_{idx2}.json')
                 img_out_path = osp(out_dir, 'imgs', pdf_name, f'{page_number_syn}_{idx2}.jpg')
 
