@@ -1,0 +1,10 @@
+# Checkbox detection dataset
+path: /Users/shubham/Documents/codes/synthetic_data_generation/checkbox_dataset
+train: images/train
+val: images/vak
+
+# Classes
+names:
+  0: checked
+  1: unchecked
+
