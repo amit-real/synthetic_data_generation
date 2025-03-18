@@ -1,1 +1,68 @@
+checkbox_dataset/
+sliced_checkbox_dataset/
+yolodataset-from-pdf/pdf-files
+
+# ZIP files
+*.zip
+**/*.zip
+
+# Generated output directories
+OUT_DIR/
+**/OUT_DIR/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.env
+.venv
+
+# IDE specific files
 .idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Generated images
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+
+# Log files
+*.log
+
+.idea/
+checkbox_dataset/
+sliced_checkbox_dataset/
+yolodataset-from-pdf/pdf-files
+.gradio/
+.venv/
