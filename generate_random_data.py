@@ -504,7 +504,7 @@ def validate_template_and_schemas(template_pdf_dir: str,
 
 
 PAGE_WIDTH, PAGE_HEIGHT = 2048, 2650
-SAMPLES_PER_PAGE = 200
+SAMPLES_PER_PAGE = 100
 SUPPORTED_TYPES = ['checkbox', 'name', 'company', 'date', 'license', 'county', 'city', 
                    'initials', 'address', 'sentence', 'number', 'initials', 'country',
                    'word']
@@ -513,7 +513,7 @@ template_pdf_dir = Path('TEMPLATE_PDF/annotated_pdfs')
 template_schema_dir = Path('TEMPLATE_PDF/schema')
 pdf_paths = list(template_pdf_dir.rglob('*.pdf'))
 
-out_dir = Path('0_sythetic_data')
+out_dir = Path('out')
 shutil.rmtree(out_dir, ignore_errors=True)
 os.makedirs(out_dir)
 
@@ -541,7 +541,8 @@ for idx, pdf_path in enumerate(pdf_paths):
             page, gt = add_fake_data(page, page_schema)
             gt = scale_coords(gt, page, PAGE_WIDTH, PAGE_HEIGHT)
             img = get_page_raster(page, PAGE_WIDTH, PAGE_HEIGHT)
-            
+            doc.close
+
             json.dump(gt, open(out_dir/pdf_name/"json"/f'{page_num+1}_{sample_no}.json', 'w'), indent=4)
             cv2.imwrite(out_dir/pdf_name/"image"/f'{page_num+1}_{sample_no}.jpg', img)
 
@@ -552,3 +553,5 @@ for idx, pdf_path in enumerate(pdf_paths):
                 cv2.rectangle(img, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
 
             cv2.imwrite(out_dir/pdf_name/"plot"/f'{page_num+1}_{sample_no}_bbox.jpg', img)
+
+print('Done...!')
