@@ -14,5 +14,9 @@ TEMPLATE_PDF
   |        
   |--- schema
   |      |--- AD2_Brokerage_to_Buyer.json
-  |      |---AVID_Buyer_Side.json
-  |      
+  |      |--- AVID_Buyer_Side.json
+  |     
+  |--- signatures
+  |      |--- sign1.png
+  |      |--- AxSigndsBLP.png
+  |      |
