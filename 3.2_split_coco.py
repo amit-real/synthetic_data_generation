@@ -14,7 +14,7 @@ train_ratio = 0.8  # Ratio for train split
 # Create split directories
 def create_split_dirs():
     for split in ['train', 'val']:
-        os.makedirs(os.path.join(output_dir, split, "images"), exist_ok=True)
+        os.makedirs(os.path.join(output_dir, "images", split), exist_ok=True)
 
 # Split files into train and validation sets
 def split_files(image_list):
@@ -58,7 +58,7 @@ def split_coco_files():
         for image_info in images:
             img_name = image_info["file_name"]
             img_src = os.path.join(image_dir, img_name)
-            img_dest = os.path.join(output_dir, split, "images", img_name)
+            img_dest = os.path.join(output_dir, "images", split, img_name)
             shutil.copy(img_src, img_dest)
 
     print("COCO dataset splitting complete.")

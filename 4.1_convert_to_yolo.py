@@ -1,6 +1,7 @@
 import os
 import json
 import shutil
+import cv2  # <-- For reading image dimensions
 
 # Define class mappings
 class_mapping = {
@@ -20,7 +21,7 @@ def get_class_id(key, value):
     else:
         # return class_mapping["textfield_filled"] if len(value["value"])>0 else class_mapping["textfield_empty"]
         return class_mapping["textfield"]
-    
+
 def convert_to_yolo(xmin, ymin, xmax, ymax, img_width, img_height):
     x_center = ((xmin + xmax) / 2) / img_width
     y_center = ((ymin + ymax) / 2) / img_height
@@ -28,7 +29,23 @@ def convert_to_yolo(xmin, ymin, xmax, ymax, img_width, img_height):
     height = (ymax - ymin) / img_height
     return x_center, y_center, width, height
 
-def process_yolo_annotation(doc_type, json_path, img_name, img_path, img_width, img_height, output_dir):
+def process_yolo_annotation(
+    doc_type,
+    json_path,
+    img_name,
+    img_path,
+    output_dir
+):
+    """Reads the JSON, converts bboxes to YOLO format, 
+    and writes .txt + image with doc_type prefix."""
+    # Read image dimensions dynamically
+    img = cv2.imread(img_path)
+    if img is None:
+        print(f"Error reading image {img_path}. Skipping...")
+        return
+    img_height, img_width = img.shape[:2]
+
+    # Load JSON
     with open(json_path, "r") as f:
         data = json.load(f)
 
@@ -44,6 +61,7 @@ def process_yolo_annotation(doc_type, json_path, img_name, img_path, img_width, 
         yolo_lines.append(yolo_line)
 
     # Add document type prefix to file names
+    # e.g. "invoice_<filename>.jpg"
     prefixed_name = f"{doc_type}_{os.path.splitext(img_name)[0]}"
 
     # Save YOLO annotation file
@@ -61,8 +79,9 @@ def process_yolo_annotation(doc_type, json_path, img_name, img_path, img_width, 
     dest_image_path = os.path.join(yolo_image_dir, f"{prefixed_name}.jpg")
     shutil.copy(img_path, dest_image_path)
 
-# Directory traversal with simple counter
-def traverse_and_convert_yolo(root_dir, output_dir, img_width, img_height):
+def traverse_and_convert_yolo(root_dir, output_dir):
+    """Traverses root_dir looking for JSON files, 
+    finds corresponding images, and converts bounding boxes to YOLO."""
     # Collect all JSON file paths
     json_files = []
     for dirpath, _, filenames in os.walk(root_dir):
@@ -74,28 +93,34 @@ def traverse_and_convert_yolo(root_dir, output_dir, img_width, img_height):
     total_files = len(json_files)
     print(f"Found {total_files} JSON files to process.")
 
-    # Process files with simple counter
     processed_count = 0
     for json_path in json_files:
         parts = json_path.split(os.sep)
-        doc_type = parts[-3]  # Extract the document type from the parent folder
+        # e.g. augmented_images/<doc_type>/json/file.json
+        # doc_type is typically parts[-3], but adjust as needed for your structure
+        doc_type = parts[-3]
+
         img_name = os.path.basename(json_path).replace(".json", ".jpg")
-        img_path = os.path.join(json_path.replace("json", "image").rsplit("/", 1)[0], img_name)
+        img_dir = json_path.replace("json", "image").rsplit("/", 1)[0]
+        img_path = os.path.join(img_dir, img_name)
 
-        if os.path.exists(img_path):
-            process_yolo_annotation(doc_type, json_path, img_name, img_path, img_width, img_height, output_dir)
+        if not os.path.exists(img_path):
+            print(f"Image file not found for {json_path}. Skipping...")
+            continue
 
-        # Update and print the simple counter
+        process_yolo_annotation(doc_type, json_path, img_name, img_path, output_dir)
+
         processed_count += 1
         print(f"Processed {processed_count}/{total_files}")
 
 # Configuration
 root_dir = "augmented_images"
 output_dir = "converted_yolo"
-shutil.rmtree(output_dir, ignore_errors=True)  # Clear previous output
+
+# Clear previous output
+shutil.rmtree(output_dir, ignore_errors=True)
 os.makedirs(output_dir)
 
-img_width, img_height = 2048, 2650
-
-traverse_and_convert_yolo(root_dir, output_dir, img_width, img_height)
+# Convert
+traverse_and_convert_yolo(root_dir, output_dir)
 print("YOLO conversion complete.")

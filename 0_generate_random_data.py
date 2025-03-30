@@ -181,7 +181,7 @@ def add_signatures_to_textfields(page, signature_dir):
                 continue
                  
         sign_aspect_ratio = img_rect.width / img_rect.height
-        target_height = int(widget_h * random.uniform(1.1, 1.8))
+        target_height = int(widget_h * random.uniform(1.5, 2.1))
         target_width = int(target_height * sign_aspect_ratio)
         
         if target_width > widget_w * 0.9:
@@ -191,7 +191,7 @@ def add_signatures_to_textfields(page, signature_dir):
         position = random.choice(['start', 'center'])
 
         if position == 'start':
-            x_pos = xmin + random.uniform(0, 20)
+            x_pos = xmin + random.uniform(-20, 20)
             y_pos = ymin + (widget_h - target_height) / 2 + random.uniform(-10, 10)
        
         elif position=='center':
@@ -588,7 +588,7 @@ def validate_template_and_schemas(template_pdf_dir: str,
 
 
 PAGE_WIDTH, PAGE_HEIGHT = 2048, 2650
-SAMPLES_PER_PAGE = 5
+SAMPLES_PER_PAGE = 3
 SUPPORTED_TYPES = ['checkbox', 'name', 'company', 'date', 'license', 'county', 'city', 
                    'initials', 'address', 'sentence', 'number', 'initials', 'country',
                    'word']

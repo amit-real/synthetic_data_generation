@@ -1,6 +1,7 @@
 import os
 import json
 import shutil
+import cv2
 
 # Define class mappings
 class_mapping = {
@@ -26,7 +27,15 @@ def convert_to_coco(xmin, ymin, xmax, ymax):
     height = ymax - ymin
     return [xmin, ymin, width, height], width * height
 
-def process_coco_annotation(doc_type, json_path, img_name, img_path, annotations, images, image_id, annotation_id, img_width, img_height):
+def process_coco_annotation(doc_type, json_path, img_name, img_path,
+                            annotations, images,
+                            image_id, annotation_id,
+                            img_width, img_height,
+                            output_dir):
+    """
+    Reads the JSON, appends image + annotation entries to the COCO structures,
+    and copies the image to 'output_dir/images' with a doc_type prefix.
+    """
     with open(json_path, "r") as f:
         data = json.load(f)
 
@@ -64,8 +73,11 @@ def process_coco_annotation(doc_type, json_path, img_name, img_path, annotations
 
     return annotation_id
 
-# Directory traversal with simple counter
-def traverse_and_convert_coco(root_dir, output_dir, img_width, img_height):
+def traverse_and_convert_coco(root_dir, output_dir):
+    """
+    Traverses 'root_dir' looking for JSON files and matching images,
+    creates COCO-style annotations, and writes them to 'output_dir'.
+    """
     annotations = []
     images = []
     annotation_id = 1
@@ -82,22 +94,44 @@ def traverse_and_convert_coco(root_dir, output_dir, img_width, img_height):
     total_files = len(json_files)
     print(f"Found {total_files} JSON files to process.")
 
-    # Process files with simple counter
     processed_count = 0
     for json_path in json_files:
         parts = json_path.split(os.sep)
-        doc_type = parts[-3]  # Extract the document type from the parent folder
+        # e.g. augmented_images/<doc_type>/.../file.json
+        # doc_type is typically parts[-3], assuming structure: 
+        # augmented_images/<doc_type>/json/file.json
+        doc_type = parts[-3]
+
+        # Derive the image name from the JSON name
         img_name = os.path.basename(json_path).replace(".json", ".jpg")
-        img_path = os.path.join(json_path.replace("json", "image").rsplit("/", 1)[0], img_name)
+        # Derive the image path by replacing 'json' with 'image' 
+        # and setting the correct .jpg file
+        # NOTE: Adjust as needed for your folder structure
+        img_dir = json_path.replace("json", "image").rsplit("/", 1)[0]
+        img_path = os.path.join(img_dir, img_name)
 
-        if os.path.exists(img_path):
-            annotation_id = process_coco_annotation(
-                doc_type, json_path, img_name, img_path, annotations, images,
-                image_id, annotation_id, img_width, img_height
-            )
-            image_id += 1
+        if not os.path.exists(img_path):
+            print(f"Warning: Image not found for JSON: {json_path}")
+            continue
 
-        # Update and print the simple counter
+        # Read image to get actual width/height
+        img = cv2.imread(img_path)
+        if img is None:
+            print(f"Error: Could not open image: {img_path}")
+            continue
+
+        img_height, img_width = img.shape[:2]
+
+        # Process COCO annotation
+        annotation_id = process_coco_annotation(
+            doc_type, json_path, img_name, img_path,
+            annotations, images,
+            image_id, annotation_id,
+            img_width, img_height,
+            output_dir
+        )
+        image_id += 1
+
         processed_count += 1
         print(f"Processed {processed_count}/{total_files}")
 
@@ -110,8 +144,6 @@ def traverse_and_convert_coco(root_dir, output_dir, img_width, img_height):
             {"id": 1, "name": "checkbox_checked"},
             {"id": 2, "name": "textfield"},
             {"id": 3, "name": "signature"}
-            # {"id": 2, "name": "textfield_empty"},
-            # {"id": 3, "name": "textfield_filled"}
         ]
     }
     os.makedirs(output_dir, exist_ok=True)
@@ -121,8 +153,7 @@ def traverse_and_convert_coco(root_dir, output_dir, img_width, img_height):
     print("COCO conversion and image copying complete.")
 
 # Configuration
-root_dir = "augmented_images"  # Root directory of the nested folders
-output_dir = "converted_coco"  # Output directory for COCO annotations and images
-img_width, img_height = 2048, 2650  # Replace with your image dimensions
+root_dir = "augmented_images"  # Root directory containing doc-type folders, images, and JSON
+output_dir = "converted_coco"  # Where COCO annotations + prefixed images will go
 
-traverse_and_convert_coco(root_dir, output_dir, img_width, img_height)
+traverse_and_convert_coco(root_dir, output_dir)

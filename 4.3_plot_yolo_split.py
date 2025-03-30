@@ -4,7 +4,7 @@ import cv2
 
 # Configuration
 yolo_dir = "split_yolo"  # Directory containing YOLO train and val datasets
-num_samples = 10  # Number of samples to visualize
+num_samples = 50  # Number of samples to visualize
 
 # Class names
 class_names = [

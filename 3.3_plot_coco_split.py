@@ -5,7 +5,7 @@ import json
 
 # Configuration
 coco_dir = "split_coco"  # Directory containing COCO train and val datasets
-num_samples = 10  # Number of samples to visualize
+num_samples = 50  # Number of samples to visualize
 
 # Class names
 class_names = [
