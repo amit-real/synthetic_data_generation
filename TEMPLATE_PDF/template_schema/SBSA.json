@@ -1,0 +1,20 @@
+{
+    "15": {
+        "<cb_1>": "checkbox",
+        "<cb_2>": "checkbox",
+        "<cb_3>": "checkbox",
+        "<cb_4>": "checkbox",
+        "<disclosure-1>": "sentence",
+        "<disclosure-2>": "sentence",
+        "<disclosure-3>": "sentence",
+        "<disclosure-4>": "sentence",
+        "<buyer-1-name>": "name",
+        "<buyer-2-name>": "name",
+        "<seller-1-name>": "name",
+        "<seller-2-name>": "name",
+        "<date-1>": "date",
+        "<date-2>": "date",
+        "<date-3>": "date",
+        "<date-4>": "date"
+    }
+}

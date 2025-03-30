@@ -1,0 +1,37 @@
+{ 
+    "1": {
+        "<cb_1>": "checkbox",
+        "<cb_2>": "checkbox",
+        "<cb_3>": "checkbox",
+        "<cb_4>": "checkbox",
+        "<cb_5>": "checkbox",
+        "<cb_6>": "checkbox",
+        "<cb_7>": "checkbox",
+        "<cb_8>": "checkbox",
+        "<cb_9>": "checkbox",
+        "<name-1>": "name",
+        "<name-2>": "name",
+        "<agent>": "company",
+        "<name-3>": "name",
+        "<date-1>": "date",
+        "<date-2>": "date",
+        "<date-3>": "date",
+        "<license-1>": "license",
+        "<license-2>": "license"
+    },
+
+    "2": {
+        "<cb_1>": "checkbox",
+        "<cb_2>": "checkbox",
+        "<cb_3>": "checkbox",
+        "<cb_4>": "checkbox",
+        "<cb_5>": "checkbox",
+        "<cb_6>": "checkbox",
+        "<cb_7>": "checkbox",
+        "<cb_8>": "checkbox",
+        "<license-1>": "license",
+        "<license-2>": "license",
+        "<license-3>": "license",
+        "<license-4>": "license"
+    }
+}

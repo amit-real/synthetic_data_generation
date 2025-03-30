@@ -1,0 +1,13 @@
+{
+    "1": {
+        "<address>": "address",
+        "<date-1>": "date",
+        "<date-2>": "date",
+        "<date-3>": "date",
+        "<date-4>": "date",
+        "<buyer-1-name>": "name",
+        "<buyer-2-name>": "name",
+        "<seller-1-name>": "name",
+        "<seller-2-name>": "name"
+    }
+}
