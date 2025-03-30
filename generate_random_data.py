@@ -238,7 +238,7 @@ def scale_coords(
     return json_data
 
 
-def add_fake_textfield_data(page, schema):
+def add_fake_textfield_data(page: fitz.Page, schema: dict[str, str]) -> tuple[fitz.Page, dict[str, str]]:
     locales = [
         'en_US', 'en_GB', 'en_CA', 'en_AU', 'en_NZ', 'en_IE',  # English-speaking
         'en_IN', 'ja_JP', 'ko_KR', 'zh_CN', 'zh_TW',  # Asian
@@ -438,14 +438,16 @@ def add_fake_textfield_data(page, schema):
     return page, gt
 
 
-def add_fake_data(page, schema):
+def add_fake_data(page: fitz.Page, schema: dict[str, str]) -> tuple[fitz.Page, dict]:
     page, gt_checkboxes = add_random_checkboxes(page, schema)
     page, gt_textfield = add_fake_textfield_data(page, schema)
     gt = {**gt_checkboxes, **gt_textfield}
     return page, gt
 
 
-def validate_template_and_schemas(template_pdf_dir, template_schema_dir):
+def validate_template_and_schemas(template_pdf_dir: str, 
+                                  template_schema_dir: str
+    ) -> None:
     pdf_paths = list(template_pdf_dir.rglob('*.pdf'))
 
     invalid = False
