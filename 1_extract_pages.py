@@ -508,7 +508,7 @@ SUPPORTED_TYPES = ['checkbox', 'name', 'company', 'date', 'license', 'county', '
                    'word']
 
 template_pdf_dir = Path('TEMPLATE_PDF/annotated_pdfs')
-template_schema_dir = Path('TEMPLATE_PDF/template_schema')
+template_schema_dir = Path('TEMPLATE_PDF/schema')
 pdf_paths = list(template_pdf_dir.rglob('*.pdf'))
 
 out_dir = Path('0_sythetic_data')
