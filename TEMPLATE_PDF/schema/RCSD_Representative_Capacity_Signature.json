@@ -10,6 +10,8 @@
         "<entity>": "company",
         "<date-3>": "date",
         "<case-num>": "number",
+        "<title-1>": "name",
+        "<title-2>": "name",
         "<seller-1-name>": "name",
         "<seller-2-name>": "name",
         "<seller-1-representative>": "name",

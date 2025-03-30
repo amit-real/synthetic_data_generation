@@ -135,6 +135,89 @@ def get_xstart_ystart(widget_type: str, text: str, xmin: int, ymin:
             x_start=xmin+4
         return x_start, y_start
 
+
+def add_signatures_to_textfields(page, signature_dir):
+    signature_dir = Path(signature_dir)
+    signature_files = list(signature_dir.rglob('*.png')) + list(signature_dir.rglob('*.jpg'))
+    
+    if not signature_files:
+        print(f"No signature files found in {signature_dir}")
+        return page, {}
+    
+    gt = {}
+    sign_count = 0
+
+    for widget in page.widgets():
+        if  widget.field_type != 7:
+            continue
+
+        if random.random() > 0.6:
+            continue
+
+        xmin, ymin, xmax, ymax = widget.rect
+        widget_w, widget_h = xmax - xmin, ymax - ymin
+        
+        sig_filename = random.choice(signature_files)
+        
+        with open(str(sig_filename), "rb") as img_file:
+            signature_bytes = img_file.read()
+        
+        img_rect = fitz.Rect(0, 0, 0, 0)
+        try:
+            img_doc = fitz.open(stream=signature_bytes, filetype="png")
+            if img_doc.page_count > 0:
+                img_page = img_doc[0]
+                img_rect = img_page.rect
+                img_doc.close()
+        except:
+            try:
+                img_doc = fitz.open(stream=signature_bytes, filetype="jpeg")
+                if img_doc.page_count > 0:
+                    img_page = img_doc[0]
+                    img_rect = img_page.rect
+                    img_doc.close()
+            except Exception as e:
+                print(f"Error reading image dimensions: {e}")
+                continue
+                 
+        sign_aspect_ratio = img_rect.width / img_rect.height
+        target_height = int(widget_h * random.uniform(1.1, 1.8))
+        target_width = int(target_height * sign_aspect_ratio)
+        
+        if target_width > widget_w * 0.9:
+            target_width = int(widget_w * 0.9)
+            target_height = int(target_width / sign_aspect_ratio)
+                
+        position = random.choice(['start', 'center'])
+
+        if position == 'start':
+            x_pos = xmin + random.uniform(0, 20)
+            y_pos = ymin + (widget_h - target_height) / 2 + random.uniform(-10, 10)
+       
+        elif position=='center':
+            x_pos = xmin + (widget_w - target_width) / 2 + random.uniform(-10, 10)
+            y_pos = ymin + (widget_h - target_height) / 2 + random.uniform(-10, 10)
+            
+        x_pos = max(xmin, min(x_pos, xmax - target_width))
+        y_pos = max(ymin, min(y_pos, ymax - target_height))
+        
+        rect = fitz.Rect(x_pos, y_pos, x_pos + target_width, y_pos + target_height)
+        page.insert_image(rect, stream=signature_bytes)
+        
+        tmp_dict =  {
+            "value": "signature",
+            "bbox":{
+                "xmin": int(x_pos),
+                "ymin": int(y_pos),
+                "xmax": int(x_pos + target_width),
+                "ymax": int(y_pos + target_height),
+            }
+        }
+        gt[f"<SIGN_{sign_count}>"] = tmp_dict
+        sign_count += 1
+    
+    return page, gt
+
     
 def add_random_checkboxes(page: fitz.Page, schema: dict[str, str]) -> tuple[fitz.Page, dict]:
     page.insert_font(fontfile='DejaVuSans.ttf', fontname="DVS")
@@ -279,7 +362,7 @@ def add_fake_textfield_data(page: fitz.Page, schema: dict[str, str]) -> tuple[fi
                 continue
             
             if field_type == "checkbox" or field_name.startswith("<cb_"):
-                continue    
+                continue
             
             if random.random() > 0.7:
                 gt[field_name] = {
@@ -441,7 +524,8 @@ def add_fake_textfield_data(page: fitz.Page, schema: dict[str, str]) -> tuple[fi
 def add_fake_data(page: fitz.Page, schema: dict[str, str]) -> tuple[fitz.Page, dict]:
     page, gt_checkboxes = add_random_checkboxes(page, schema)
     page, gt_textfield = add_fake_textfield_data(page, schema)
-    gt = {**gt_checkboxes, **gt_textfield}
+    page, gt_signatures = add_signatures_to_textfields(page, signature_dir)
+    gt = {**gt_checkboxes, **gt_textfield, **gt_signatures}
     return page, gt
 
 
@@ -504,13 +588,14 @@ def validate_template_and_schemas(template_pdf_dir: str,
 
 
 PAGE_WIDTH, PAGE_HEIGHT = 2048, 2650
-SAMPLES_PER_PAGE = 100
+SAMPLES_PER_PAGE = 5
 SUPPORTED_TYPES = ['checkbox', 'name', 'company', 'date', 'license', 'county', 'city', 
                    'initials', 'address', 'sentence', 'number', 'initials', 'country',
                    'word']
 
 template_pdf_dir = Path('TEMPLATE_PDF/annotated_pdfs')
 template_schema_dir = Path('TEMPLATE_PDF/schema')
+signature_dir = Path('TEMPLATE_PDF/signatures')
 pdf_paths = list(template_pdf_dir.rglob('*.pdf'))
 
 out_dir = Path('out')

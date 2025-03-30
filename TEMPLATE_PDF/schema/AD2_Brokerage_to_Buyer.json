@@ -32,6 +32,11 @@
         "<license-1>": "license",
         "<license-2>": "license",
         "<license-3>": "license",
-        "<license-4>": "license"
+        "<license-4>": "license",
+        "<sample-1>": "word",
+        "<sample-2": "word",
+        "<sample-3>": "word",
+        "<sample-4>": "word"
+
     }
 }
