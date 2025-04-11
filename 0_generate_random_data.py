@@ -105,7 +105,6 @@ def get_xstart_ystart(widget_type: str, text: str, xmin: int, ymin:
     
     width, height = abs(xmax-xmin), abs(ymax-ymin)
     align_x = random.choice(['left', 'center', 'right'])
-    # align_y = random.choice(['above', 'same', 'below'])
 
     if align_x=='left':
         x_buffer, y_buffer = random.choice([1,2,3]), random.choice([0,1,2,3,4])
@@ -148,10 +147,13 @@ def add_signatures_to_textfields(page, signature_dir):
     sign_count = 0
 
     for widget in page.widgets():
-        if  widget.field_type != 7:
+        widget_name = widget.field_name
+        widget_type = widget.field_type_string
+        
+        if widget_type!='Text':
             continue
 
-        if random.random() > 0.6:
+        if random.random() > 0.4:
             continue
 
         xmin, ymin, xmax, ymax = widget.rect
@@ -205,6 +207,7 @@ def add_signatures_to_textfields(page, signature_dir):
         page.insert_image(rect, stream=signature_bytes)
         
         tmp_dict =  {
+            "widget_type": "signature",
             "value": "signature",
             "bbox":{
                 "xmin": int(x_pos),
@@ -219,69 +222,55 @@ def add_signatures_to_textfields(page, signature_dir):
     return page, gt
 
     
-def add_random_checkboxes(page: fitz.Page, schema: dict[str, str]) -> tuple[fitz.Page, dict]:
+def add_random_checkboxes(page: fitz.Page) -> tuple[fitz.Page, dict]:
     page.insert_font(fontfile='DejaVuSans.ttf', fontname="DVS")
     gt = {}
 
     for widget in page.widgets():
-        field_name = widget.field_name
-
-        if "<cb_" not in field_name :
+        widget_name = widget.field_name
+        widget_type = widget.field_type_string
+        
+        if widget_type!='CheckBox':
             continue
 
         font = 'DVS'
         xmin, ymin, xmax, ymax = widget.rect.x0, widget.rect.y0, widget.rect.x1, widget.rect.y1
-        xc, yc = xmin, ymax
-        outer_radius = (xmax-xmin)
+        width = xmax - xmin
+        height = ymax - ymin
+        center_x = (xmin + xmax) / 2
+        center_y = (ymin + ymax) / 2
+        base_size = min(width, height)
+        font_size = int(base_size * random.uniform(0.9, 1.4))  # experiment with 0.6–0.9
 
+        # outer_radius = (xmax-xmin)
+        # font_size = int(outer_radius * random.uniform(1, 1.8))
+        
         page.delete_widget(widget)
-
-        if field_name not in schema: # if not specified in schema, then don't touch it
-            gt[field_name] = {
-                "state": "unchecked",
-                "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
-            }
-            continue
         
         if random.random() > 0.5:
-            gt[field_name] = {
+            gt[widget_name] = {
+                "widget_type": "checkbox",
                 "state": "unchecked",
                 "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
             }
             continue
-
-        if random.random() > 0.7: # adding under-shadow effect to cbox
-            line_annot = page.add_line_annot((xmin,ymax), (xmax,ymax))
-            line_annot.set_colors(stroke=(0.25, 0.25, 0.25))
-            line_annot.set_border(width=2)
-            line_annot.update()
-
-        elif random.random() > 0.7: # making all boundaries of cbox bold
-            width = random.choice([1,2])
-            coord_set = [[(xmin,ymin), (xmax,ymin)], 
-                         [(xmax,ymin), (xmax,ymax)],
-                         [(xmax,ymax), (xmin,ymax)], 
-                         [(xmin,ymax), (xmin,ymin)]
-                        ]
-            for coord in coord_set: # covering 4 boundaries of cbox
-                line_annot = page.add_line_annot(coord[0], coord[1])
-                line_annot.set_colors(stroke=(0,0,0))
-                line_annot.set_border(width=width)
-                line_annot.update()
-
 
         r,g,b = 0,0,0
         if random.random()>0.5:
             r,g,b = random.randint(1, 200), random.randint(1, 200), random.randint(1, 200)
             
         symbol = random.choice(["●", "◉", "✖", "X", "✔", "✓"])
-        font_size = int(outer_radius * random.uniform(1, 1.8))
-        page.insert_text((xc , yc ), symbol,
+        
+        page.insert_text(
+                        (xmin, ymax),
+                        # (center_x, center_y), 
+                        symbol,
                         fontsize=font_size,
                         color=(r / 255, g / 255, b / 255),
                         fontname=font)
         
-        gt[field_name] = {
+        gt[widget_name] = {
+            "widget_type": "checkbox",
             "state": "checked",
             "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
         }
@@ -297,6 +286,21 @@ def trim_text_to_width(text: str, max_width: int, font_size: int=13, char_width:
     if len(text) > max_chars:
         return text[:max_chars - 2]
     return text
+
+def select_text_widthwise(fake_dict: dict, max_chars: int) -> str:
+    min_len_diff = 10000
+    min_dif_text = ''
+    
+    for datatype, text in fake_dict.items():
+        len_diff = abs(len(text) - max_chars)
+        if len_diff < min_len_diff:
+            min_len_diff = len_diff
+            min_dif_text = text
+            
+    if len(min_dif_text)>=max_chars:
+        return min_dif_text[:max_chars - 2]  
+
+    return min_dif_text
 
 def scale_coords(
     json_data: dict[str, dict], 
@@ -320,8 +324,143 @@ def scale_coords(
 
     return json_data
 
+def generate_fake_data():
+    locales = [
+        'en_US', 'en_GB', 'en_CA', 'en_AU', 'en_NZ', 'en_IE',  # English-speaking
+        'en_IN', 'ja_JP', 'ko_KR', 'zh_CN', 'zh_TW',  # Asian
+        'fr_FR', 'de_DE', 'it_IT', 'nl_NL', 'pt_PT',  # European
+        'es_MX', 'es_ES', 'es_CO', 'es_AR', 'es_CL'  # Spanish-speaking (Latin America and Europe)
+    ]
+    fake = Faker()
+    
+    data_types = ['name', 'company', 'date', 'license', 'initials', 'address', 
+                    'sentence', 'county', 'city', 'country', 'number', 'word'
+                ]
 
-def add_fake_textfield_data(page: fitz.Page, schema: dict[str, str]) -> tuple[fitz.Page, dict[str, str]]:
+    fake_dict = {}
+    
+    for data_type in data_types:
+        if data_type == "name":
+            locale = random.choice(locales)
+            localized_fake = Faker(locale)
+            text = localized_fake.name()
+            text = remove_accents(text)
+            fake_dict[data_type] = text
+
+        elif data_type == "company":
+            locale = random.choice(locales)
+            localized_fake = Faker(locale)
+            text = localized_fake.company()
+            text = remove_accents(text)
+            fake_dict[data_type] = text
+            
+        elif data_type == "date":
+            text = fake.date(pattern='%m/%d/%Y')
+            text = remove_accents(text)
+            fake_dict[data_type] = text
+
+        elif data_type == "license":
+            letters = ''.join(random.choices(string.ascii_uppercase, k=2))
+            digits = ''.join(random.choices(string.digits, k=7))
+            text = f"{letters}{digits}"
+            text = remove_accents(text)
+            fake_dict[data_type] = text
+
+        elif data_type == "initials":
+            locale = random.choice(locales)
+            localized_fake = Faker(locale)
+            text = f"{localized_fake.first_name()[0]}.{localized_fake.last_name()[0]}."
+            text = remove_accents(text)
+            fake_dict[data_type] = text
+        
+        elif data_type == "address":
+            locale = random.choice(locales)
+            localized_fake = Faker(locale)
+            text = localized_fake.address().replace("\n", ", ")
+            text = remove_accents(text)
+            fake_dict[data_type] = text
+        
+        elif data_type == "sentence":
+            text = fake.sentence(nb_words=random.randint(5, 12))
+            text = remove_accents(text)
+            fake_dict[data_type] = text
+        
+        elif data_type == "county" or data_type == "city":
+            locale = random.choice(locales)
+            localized_fake = Faker(locale)
+            text = localized_fake.city()
+            text = remove_accents(text)
+            fake_dict[data_type] = text
+
+        elif data_type == "country":
+            locale = random.choice(locales)
+            localized_fake = Faker(locale)
+            text = localized_fake.country()
+            text = remove_accents(text)
+            fake_dict[data_type] = text
+
+        elif data_type == "number":
+            text = str(random.randint(1, 100))
+            fake_dict[data_type] = text
+        
+        elif data_type == "word":
+            locale = random.choice(locales)
+            localized_fake = Faker(locale)
+            text = localized_fake.word()
+            text = remove_accents(text)
+            fake_dict[data_type] = text
+            
+    return fake_dict
+
+
+def add_fake_textfield_data(page: fitz.Page) -> tuple[fitz.Page, dict[str, str]]:
+    gt = {}
+    for widget in page.widgets():
+        widget_name = widget.field_name
+        widget_type = widget.field_type_string
+        
+        if widget_type!='Text':
+            continue
+              
+        xmin, ymin, xmax, ymax = widget.rect.x0, widget.rect.y0, widget.rect.x1, widget.rect.y1
+        width = xmax-xmin
+
+        if random.random() < 0.2:
+            gt[widget_name] = {
+                "widget_type": "textfield",
+                "value": "",
+                "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
+            }
+            continue
+
+        
+        r,g,b = 0,0,0
+        if random.random()>0.4:
+            r,g,b = random.randint(1, 200), random.randint(1, 200), random.randint(1, 200)
+        r,g,b = r/256, g/256, b/256
+          
+        font_name = random.choice(['cobi', 'cobo', 'coit', 'cour', 'hebo', 'heit', 'helv', 'tibi', 'tibo', 'tiit', 'tiro'])
+        font_size = random.choice([9, 10, 11, 12, 13])
+        
+        char_size = random.choice([7,8,9])
+        max_chars =int(width / (char_size * (font_size / 13)))
+        
+        fake_dict = generate_fake_data()
+        text = select_text_widthwise(fake_dict, max_chars)
+
+        x, y = get_xstart_ystart('textfield', text, xmin, ymin, xmax, ymax, font_size)
+        page.insert_text((x, y), text, fontname=font_name, fontsize=font_size, color=(r, g, b))
+        
+        gt[widget_name] = {
+                "widget_type": "textfield",
+                "value": text,
+                "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
+            }
+        
+    return page, gt
+
+
+def add_fake_textfield_data_bak(page: fitz.Page) -> tuple[fitz.Page, dict[str, str]]:
     locales = [
         'en_US', 'en_GB', 'en_CA', 'en_AU', 'en_NZ', 'en_IE',  # English-speaking
         'en_IN', 'ja_JP', 'ko_KR', 'zh_CN', 'zh_TW',  # Asian
@@ -334,7 +473,11 @@ def add_fake_textfield_data(page: fitz.Page, schema: dict[str, str]) -> tuple[fi
     
     for widget in page.widgets():
         widget_name = widget.field_name
+        widget_type = widget.field_type_string
         
+        if widget_type!='Text':
+            continue
+                
         font_name = random.choice(['cobi', 'cobo', 'coit', 'cour', 'hebo', 'heit', 'helv', 'tibi', 'tibo', 'tiit', 'tiro'])
         font_size = random.choice([9, 10, 11, 12, 13])
         
@@ -345,285 +488,211 @@ def add_fake_textfield_data(page: fitz.Page, schema: dict[str, str]) -> tuple[fi
             r,g,b = random.randint(1, 200), random.randint(1, 200), random.randint(1, 200)
         r,g,b = r/256, g/256, b/256
 
-        if widget_name not in schema:
-            if '<cb_' in widget_name:
-                gt[widget_name] = {
-                    "state": "unchecked",
-                    "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
-                }
-            else:
-                gt[widget_name] = {
-                        "value": "",
-                        "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
-                    }
-
-        for field_name, field_type in schema.items():
-            if field_name != widget_name:
-                continue
+        data_types = ['name', 'company', 'date', 'license', 'initials', 'address', 
+                      'sentence', 'county', 'city', 'country', 'number', 'word']
+        
+        field_type = random.choice(data_types)
             
-            if field_type == "checkbox" or field_name.startswith("<cb_"):
-                continue
-            
-            if random.random() > 0.7:
-                gt[field_name] = {
-                    "value": "",
-                    "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
-                }
-                continue
-
-            if field_type == "name":
-                locale = random.choice(locales)
-                localized_fake = Faker(locale)
-                text = localized_fake.name()
-                text = remove_accents(text)
-                x, y = get_xstart_ystart(field_type, text, xmin, ymin, xmax, ymax, font_size)
-                page.insert_text((x, y), text, fontname=font_name, fontsize=font_size, color=(r, g, b))
-                
-                gt[field_name] = {
-                    "value": text,
-                    "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
-                }
-                break
-
-            elif field_type == "company":
-                locale = random.choice(locales)
-                localized_fake = Faker(locale)
-                text = localized_fake.company()
-                text = remove_accents(text)
-                x, y = get_xstart_ystart(field_type, text, xmin, ymin, xmax, ymax, font_size)
-                page.insert_text((x, y), text, fontname=font_name, fontsize=font_size, color=(r, g, b))
-                
-                gt[field_name] = {
-                    "value": text,
-                    "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
-                }
-                break
-
-            elif field_type == "date":
-                text = fake.date(pattern='%m/%d/%Y')
-                text = remove_accents(text)
-                x, y = get_xstart_ystart(field_type, text, xmin, ymin, xmax, ymax, font_size)
-                page.insert_text((x, y), text, fontname=font_name, fontsize=font_size, color=(r, g, b))
-                gt[field_name] = {
-                    "value": text,
-                    "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
-                }
-                break
-
-            elif field_type == "license":
-                letters = ''.join(random.choices(string.ascii_uppercase, k=2))
-                digits = ''.join(random.choices(string.digits, k=7))
-                text = f"{letters}{digits}"
-                text = remove_accents(text)
-                x, y = get_xstart_ystart(field_type, text, xmin, ymin, xmax, ymax, font_size)
-                page.insert_text((x, y), text, fontname=font_name, fontsize=font_size, color=(r, g, b))
-                gt[field_name] = {
-                    "value": text,
-                    "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
-                }
-                break
-
-            elif field_type == "initials":
-                locale = random.choice(locales)
-                localized_fake = Faker(locale)
-                text = f"{localized_fake.first_name()[0]}.{localized_fake.last_name()[0]}."
-                text = remove_accents(text)
-                x, y = get_xstart_ystart(field_type, text, xmin, ymin, xmax, ymax, font_size)
-                page.insert_text((x, y), text, fontname=font_name, fontsize=font_size, color=(r, g, b))
-                
-                gt[field_name] = {
-                    "value": text,
-                    "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
-                }
-                break
-            
-            elif field_type == "address":
-                locale = random.choice(locales)
-                localized_fake = Faker(locale)
-                text = localized_fake.address().replace("\n", ", ")
-                text = remove_accents(text)
-                text = trim_text_to_width(text, xmax-xmin, font_size, char_width=7)
-                x, y = get_xstart_ystart(field_type, text, xmin, ymin, xmax, ymax, font_size)
-                page.insert_text((x, y), text, fontname=font_name, fontsize=font_size, color=(r, g, b))
-                
-                gt[field_name] = {
-                    "value": text,
-                    "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
-                }
-                break
-            
-            elif field_type == "sentence":
-                text = fake.sentence(nb_words=random.randint(5, 12))
-                text = remove_accents(text)
-                text = trim_text_to_width(text, xmax-xmin, font_size, char_width=7)
-                x, y = get_xstart_ystart(field_type, text, xmin, ymin, xmax, ymax, font_size)
-                page.insert_text((x, y), text, fontname=font_name, fontsize=font_size, color=(r, g, b))
-
-                gt[field_name] = {
-                    "value": text,
-                    "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
-                }
-                break
-            elif field_type == "county" or field_type == "city":
-                text = fake.city()
-                text = remove_accents(text)
-                x, y = get_xstart_ystart(field_type, text, xmin, ymin, xmax, ymax, font_size)
-                page.insert_text((x, y), text, fontname=font_name, fontsize=font_size, color=(r, g, b))
-
-                gt[field_name] = {
-                    "value": text,
-                    "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
-                }
-                break
-
-            elif field_type == "country":
-                text = fake.country()
-                text = remove_accents(text)
-                x, y = get_xstart_ystart(field_type, text, xmin, ymin, xmax, ymax, font_size)
-                page.insert_text((x, y), text, fontname=font_name, fontsize=font_size, color=(r, g, b))
-
-                gt[field_name] = {
-                    "value": text,
-                    "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
-                }
-                break
-
-            elif field_type == "number":
-                text = str(random.randint(1, 100))
-                text = trim_text_to_width(text, xmax-xmin, font_size, char_width=8)
-                x, y = get_xstart_ystart(field_type, text, xmin, ymin, xmax, ymax, font_size)
-                page.insert_text((x, y), text, fontname=font_name, fontsize=font_size, color=(r, g, b))
-
-                gt[field_name] = {
-                    "value": text,
-                    "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
-                }
-                break
-            elif field_type == "word":
-                text = fake.word()
-                text = remove_accents(text)
-                x, y = get_xstart_ystart(field_type, text, xmin, ymin, xmax, ymax, font_size)
-                page.insert_text((x, y), text, fontname=font_name, fontsize=font_size, color=(r, g, b))
-
-                gt[field_name] = {
-                    "value": text,
-                    "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
-                }
-                break
-            else:
-                gt[field_name] = {
-                    "value": "",
-                    "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
-                }
-                print(f"Unknown field type '{field_type}' for field '{field_name}'.")
-                break
-
-    return page, gt
-
-
-def add_fake_data(page: fitz.Page, schema: dict[str, str]) -> tuple[fitz.Page, dict]:
-    page, gt_checkboxes = add_random_checkboxes(page, schema)
-    page, gt_textfield = add_fake_textfield_data(page, schema)
-    page, gt_signatures = add_signatures_to_textfields(page, signature_dir)
-    gt = {**gt_checkboxes, **gt_textfield, **gt_signatures}
-    return page, gt
-
-
-def validate_template_and_schemas(template_pdf_dir: str, 
-                                  template_schema_dir: str
-    ) -> None:
-    pdf_paths = list(template_pdf_dir.rglob('*.pdf'))
-
-    invalid = False
-    critical_errors = []
-    warnings = []
-
-    for idx, pdf_path in enumerate(pdf_paths):
-        pdf_name = pdf_path.name
-        page_nums = len(fitz.open(str(pdf_path)))
-
-        if not os.path.exists(template_schema_dir/pdf_name.replace('.pdf', '.json')):
-            warnings.append(f"warning: Schema file not found for '{pdf_name}'")
+        if random.random() < 0.1:
+            gt[widget_name] = {
+                "widget_type": "textfield",
+                "value": "",
+                "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
+            }
             continue
-        
-        doc = fitz.open(str(pdf_path))
-        schema = json.load(open(template_schema_dir/pdf_name.replace('.pdf', '.json')))        
-        schema = {int(k): v for k, v in schema.items()}
-        
-        for page_num in range(page_nums):
-            page = doc.load_page(page_num)
 
-            page_field_names = [i.field_name for i in page.widgets()]
-
-            if len(page_field_names)==0:
-                continue
-
-            if page_num+1 not in schema:
-                warnings.append(f"warning: Page missing in schema for '{pdf_name}' page {page_num+1}")
-                continue
-
-            page_schema = schema[page_num+1]
-
-            for field_name, field_type in page_schema.items():
-                if field_type not in SUPPORTED_TYPES:
-                    critical_errors.append(f"Unsupported type '{field_type}' in '{pdf_name}' for page {page_num+1}.")
-                    invalid = True
-        doc.close()
-        
-    if len(warnings) > 0:
-        print('WARNINGS:')
-        for warning in warnings:
-            print(warning)
-
-    print('')
-    if len(critical_errors) > 0:
-        print('CRITICAL ERRORS:')
-        for error in critical_errors:
-            print(error)
+        if field_type == "name":
+            locale = random.choice(locales)
+            localized_fake = Faker(locale)
+            text = localized_fake.name()
+            text = remove_accents(text)
+            text = trim_text_to_width(text, xmax - xmin, font_size, char_width=7)
+            x, y = get_xstart_ystart(field_type, text, xmin, ymin, xmax, ymax, font_size)
+            page.insert_text((x, y), text, fontname=font_name, fontsize=font_size, color=(r, g, b))
             
-    print()
-    if invalid:
-        print('Please fix the errors first...')
-        exit()
+            gt[widget_name] = {
+                "widget_type": "textfield",
+                "value": text,
+                "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
+            }
+
+        elif field_type == "company":
+            locale = random.choice(locales)
+            localized_fake = Faker(locale)
+            text = localized_fake.company()
+            text = remove_accents(text)
+            text = trim_text_to_width(text, xmax - xmin, font_size, char_width=7)
+            x, y = get_xstart_ystart(field_type, text, xmin, ymin, xmax, ymax, font_size)
+            page.insert_text((x, y), text, fontname=font_name, fontsize=font_size, color=(r, g, b))
+            
+            gt[widget_name] = {
+                "widget_type": "textfield",
+                "value": text,
+                "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
+            }
+
+        elif field_type == "date":
+            text = fake.date(pattern='%m/%d/%Y')
+            text = remove_accents(text)
+            text = trim_text_to_width(text, xmax - xmin, font_size, char_width=7)
+            x, y = get_xstart_ystart(field_type, text, xmin, ymin, xmax, ymax, font_size)
+            page.insert_text((x, y), text, fontname=font_name, fontsize=font_size, color=(r, g, b))
+            gt[widget_name] = {
+                "widget_type": "textfield",
+                "value": text,
+                "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
+            }
+
+        elif field_type == "license":
+            letters = ''.join(random.choices(string.ascii_uppercase, k=2))
+            digits = ''.join(random.choices(string.digits, k=7))
+            text = f"{letters}{digits}"
+            text = remove_accents(text)
+            text = trim_text_to_width(text, xmax - xmin, font_size, char_width=7)
+            x, y = get_xstart_ystart(field_type, text, xmin, ymin, xmax, ymax, font_size)
+            page.insert_text((x, y), text, fontname=font_name, fontsize=font_size, color=(r, g, b))
+            gt[widget_name] = {
+                "widget_type": "textfield",
+                "value": text,
+                "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
+            }
+
+        elif field_type == "initials":
+            locale = random.choice(locales)
+            localized_fake = Faker(locale)
+            text = f"{localized_fake.first_name()[0]}.{localized_fake.last_name()[0]}."
+            text = remove_accents(text)
+            text = trim_text_to_width(text, xmax - xmin, font_size, char_width=7)
+            x, y = get_xstart_ystart(field_type, text, xmin, ymin, xmax, ymax, font_size)
+            page.insert_text((x, y), text, fontname=font_name, fontsize=font_size, color=(r, g, b))
+            
+            gt[widget_name] = {
+                "widget_type": "textfield",
+                "value": text,
+                "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
+            }
+        
+        elif field_type == "address":
+            locale = random.choice(locales)
+            localized_fake = Faker(locale)
+            text = localized_fake.address().replace("\n", ", ")
+            text = remove_accents(text)
+            text = trim_text_to_width(text, xmax - xmin, font_size, char_width=7)
+            text = trim_text_to_width(text, xmax-xmin, font_size, char_width=7)
+            x, y = get_xstart_ystart(field_type, text, xmin, ymin, xmax, ymax, font_size)
+            page.insert_text((x, y), text, fontname=font_name, fontsize=font_size, color=(r, g, b))
+            
+            gt[widget_name] = {
+                "widget_type": "textfield",
+                "value": text,
+                "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
+            }
+        
+        elif field_type == "sentence":
+            text = fake.sentence(nb_words=random.randint(5, 12))
+            text = remove_accents(text)
+            text = trim_text_to_width(text, xmax-xmin, font_size, char_width=7)
+            x, y = get_xstart_ystart(field_type, text, xmin, ymin, xmax, ymax, font_size)
+            page.insert_text((x, y), text, fontname=font_name, fontsize=font_size, color=(r, g, b))
+
+            gt[widget_name] = {
+                "widget_type": "textfield",
+                "value": text,
+                "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
+            }
+        
+        elif field_type == "county" or field_type == "city":
+            text = fake.city()
+            text = remove_accents(text)
+            text = trim_text_to_width(text, xmax - xmin, font_size, char_width=7)
+            x, y = get_xstart_ystart(field_type, text, xmin, ymin, xmax, ymax, font_size)
+            page.insert_text((x, y), text, fontname=font_name, fontsize=font_size, color=(r, g, b))
+
+            gt[widget_name] = {
+                "widget_type": "textfield",
+                "value": text,
+                "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
+            }
+
+        elif field_type == "country":
+            text = fake.country()
+            text = remove_accents(text)
+            text = trim_text_to_width(text, xmax - xmin, font_size, char_width=7)
+            x, y = get_xstart_ystart(field_type, text, xmin, ymin, xmax, ymax, font_size)
+            page.insert_text((x, y), text, fontname=font_name, fontsize=font_size, color=(r, g, b))
+
+            gt[widget_name] = {
+                "widget_type": "textfield",
+                "value": text,
+                "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
+            }
+
+        elif field_type == "number":
+            text = str(random.randint(1, 100))
+            text = trim_text_to_width(text, xmax-xmin, font_size, char_width=8)
+            x, y = get_xstart_ystart(field_type, text, xmin, ymin, xmax, ymax, font_size)
+            page.insert_text((x, y), text, fontname=font_name, fontsize=font_size, color=(r, g, b))
+
+            gt[widget_name] = {
+                "widget_type": "textfield",
+                "value": text,
+                "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
+            }
+        
+        elif field_type == "word":
+            text = fake.word()
+            text = remove_accents(text)
+            text = trim_text_to_width(text, xmax - xmin, font_size, char_width=7)
+            x, y = get_xstart_ystart(field_type, text, xmin, ymin, xmax, ymax, font_size)
+            page.insert_text((x, y), text, fontname=font_name, fontsize=font_size, color=(r, g, b))
+
+            gt[widget_name] = {
+                "widget_type": "textfield",
+                "value": text,
+                "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
+            }
+        
+    return page, gt
+
+
+def add_fake_data(page: fitz.Page) -> tuple[fitz.Page, dict]:
+    page, gt_checkboxes = add_random_checkboxes(page)
+    page, gt_textfield = add_fake_textfield_data(page)
+    # page, gt_signatures = add_signatures_to_textfields(page, signature_dir)
+    gt = {**gt_checkboxes, **gt_textfield} #, **gt_signatures}
+    return page, gt
 
 
 PAGE_WIDTH, PAGE_HEIGHT = 2048, 2650
-SAMPLES_PER_PAGE = 3
+SAMPLES_PER_PAGE = 5
 SUPPORTED_TYPES = ['checkbox', 'name', 'company', 'date', 'license', 'county', 'city', 
                    'initials', 'address', 'sentence', 'number', 'initials', 'country',
-                   'word']
+                   'word'
+                    ]
 
-template_pdf_dir = Path('TEMPLATE_PDF/annotated_pdfs')
-template_schema_dir = Path('TEMPLATE_PDF/schema')
-signature_dir = Path('TEMPLATE_PDF/signatures')
+template_pdf_dir = Path('../TEMPLATE_PDF/annotated_pdfs')
+signature_dir = Path('../TEMPLATE_PDF/signatures')
 pdf_paths = list(template_pdf_dir.rglob('*.pdf'))
 
 out_dir = Path('out')
 shutil.rmtree(out_dir, ignore_errors=True)
 os.makedirs(out_dir)
 
-validate_template_and_schemas(template_pdf_dir, template_schema_dir)
-
 for idx, pdf_path in enumerate(pdf_paths):
     pdf_name = pdf_path.name    
     page_nums = len(fitz.open(str(pdf_path)))
 
-    schema = json.load(open(template_schema_dir/pdf_name.replace('.pdf', '.json')))
-    schema = {int(k): v for k, v in schema.items()}
     os.makedirs(out_dir/pdf_name/"image", exist_ok=True)
     os.makedirs(out_dir/pdf_name/"json", exist_ok=True)
-    os.makedirs(out_dir/pdf_name/"plot", exist_ok=True)
+    # os.makedirs(out_dir/pdf_name/"plot", exist_ok=True)
 
     for page_num in range(page_nums):
-        if page_num+1 not in schema:
-            continue
         for sample_no in range(SAMPLES_PER_PAGE):
             print(f"{idx+1}/{len(pdf_paths)} {page_num+1}/{page_nums} {sample_no+1}/{SAMPLES_PER_PAGE}  {pdf_path}")
             doc = fitz.open(str(pdf_path))
             page = doc.load_page(page_num)
-            page_schema = schema[page_num+1]
 
-            page, gt = add_fake_data(page, page_schema)
+            page, gt = add_fake_data(page)
             gt = scale_coords(gt, page, PAGE_WIDTH, PAGE_HEIGHT)
             img = get_page_raster(page, PAGE_WIDTH, PAGE_HEIGHT)
             doc.close
@@ -631,12 +700,12 @@ for idx, pdf_path in enumerate(pdf_paths):
             json.dump(gt, open(out_dir/pdf_name/"json"/f'{page_num+1}_{sample_no}.json', 'w'), indent=4)
             cv2.imwrite(out_dir/pdf_name/"image"/f'{page_num+1}_{sample_no}.jpg', img)
 
-            for field_name, entry in gt.items():
-                bbox = entry['bbox']
-                xmin, ymin, xmax, ymax = bbox['xmin'], bbox['ymin'], bbox['xmax'], bbox['ymax']
-                xmin, ymin, xmax, ymax = int(xmin), int(ymin), int(xmax), int(ymax)
-                cv2.rectangle(img, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
+            # for field_name, entry in gt.items():
+            #     bbox = entry['bbox']
+            #     xmin, ymin, xmax, ymax = bbox['xmin'], bbox['ymin'], bbox['xmax'], bbox['ymax']
+            #     xmin, ymin, xmax, ymax = int(xmin), int(ymin), int(xmax), int(ymax)
+            #     cv2.rectangle(img, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
 
-            cv2.imwrite(out_dir/pdf_name/"plot"/f'{page_num+1}_{sample_no}_bbox.jpg', img)
+            # cv2.imwrite(out_dir/pdf_name/"plot"/f'{page_num+1}_{sample_no}_bbox.jpg', img)
 
 print('Done...!')

@@ -5,32 +5,29 @@ import random
 from pathlib import Path
 import albumentations as A
 
-# Augmentation pipeline
-import albumentations as A
 
 transforms = A.Compose([
-    A.HorizontalFlip(p=0.3),
-    A.Perspective(scale=(0.05, 0.1), p=0.5),
-    A.GridDistortion(num_steps=5, distort_limit=0.2, p=0.5),
-    A.ElasticTransform(alpha=1, sigma=50, alpha_affine=50, p=0.3),
-    A.GaussNoise(var_limit=(10.0, 50.0), p=0.3),
-    A.GaussianBlur(blur_limit=(3, 7), p=0.3),
-    # Shadow with lighter range
-    A.RandomShadow(
-        shadow_gray_value=(120, 180),  # lighten shadows
-        p=0.5
-    ),
-    A.InvertImg(p=0.2),
-    # Limit rotation angle
-    A.ShiftScaleRotate(
-        shift_limit=0.1,
-        scale_limit=0.1,
-        rotate_limit=3,   # smaller rotation
-        p=0.5
-    ),
-    A.RandomBrightnessContrast(p=0.3),
-    A.RGBShift(r_shift_limit=30, g_shift_limit=30, b_shift_limit=30, p=0.3),
-],
+                A.HorizontalFlip(p=0.3),
+                A.Perspective(scale=(0.05, 0.1), p=0.3),
+                A.GridDistortion(num_steps=5, distort_limit=0.7, p=0.3),
+                A.ElasticTransform(alpha=8, sigma=5, alpha_affine=0, approximate=True, p=0.3),
+                A.GaussNoise(var_limit=(10.0, 50.0), p=0.3),
+                A.GaussianBlur(blur_limit=(8, 12), p=0.3),
+                A.RandomShadow(
+                    shadow_gray_value=(300, 500),
+                    p=0.3
+                ),
+                A.InvertImg(p=0.3),
+                A.ShiftScaleRotate(
+                    shift_limit=0.1,
+                    scale_limit=0.1,
+                    rotate_limit=3,
+                    p=0.3
+                ),
+                A.RandomBrightnessContrast(p=0.3),
+                A.RGBShift(r_shift_limit=50, g_shift_limit=50, b_shift_limit=50, p=0.3),
+                A.MotionBlur(blur_limit=(6,10), p=0.3)
+            ],
 bbox_params=A.BboxParams(format='pascal_voc',
                          label_fields=['category_ids'],
                          min_visibility=0.4)
@@ -91,13 +88,12 @@ def process_augmentation(image_path, json_path, out_img_path, out_json_path):
             'ymax': int(bbox[3])
         }
     
-    # Write out the augmented image and JSON
     cv2.imwrite(str(out_img_path), aug_image)
     with open(out_json_path, 'w') as f:
         json.dump(updated_annotations, f, indent=4)
 
 # ------------------ Main Execution ------------------
-cropped_dir = Path('out_cropped_images')
+cropped_dir = Path('out_cropped_vertically')
 out_dir = Path('augmented_images')
 shutil.rmtree(out_dir, ignore_errors=True)
 os.makedirs(out_dir)

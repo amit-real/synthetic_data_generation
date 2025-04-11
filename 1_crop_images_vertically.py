@@ -39,13 +39,14 @@ def crop_image_vertically(image, crop_height):
 
     return crops
 
-def adjust_bboxes_single(bbox, offset_y, crop_height, visibility=0.5):
-    """
-    Adjust a single bounding box to the coordinate system of the cropped image.
 
-    Returns a list with zero or one bounding boxes (empty if it doesn't meet visibility).
-    """
-    ymin, ymax = bbox['ymin'], bbox['ymax']
+def adjust_bboxes_single(widget_dict, offset_y, crop_height, visibility=0.5):
+    ymin, ymax = widget_dict['bbox']['ymin'], widget_dict['bbox']['ymax']
+    
+    if widget_dict['widget_type']=='textfield':
+        if ymax<offset_y or ymax>offset_y+crop_height: # if the underline of the textfield is not visible, then skip
+            return []
+    
     bbox_height = ymax - ymin
 
     # Intersection with the crop [offset_y, offset_y + crop_height]
@@ -55,7 +56,7 @@ def adjust_bboxes_single(bbox, offset_y, crop_height, visibility=0.5):
 
     # If at least 'visibility'% of the bbox is present, include it
     if bbox_height > 0 and (visible_height / bbox_height) >= visibility:
-        new_bbox = bbox.copy()
+        new_bbox = widget_dict['bbox'].copy()
 
         # Shift bbox coords relative to top of crop
         new_bbox['ymin'] = intersection_ymin - offset_y
@@ -69,38 +70,32 @@ def adjust_bboxes_single(bbox, offset_y, crop_height, visibility=0.5):
     else:
         return []
 
-def adjust_bboxes_annotations(annotations, offset_y, crop_height):
-    """
-    Given an annotations dict, returns a new dict with bounding boxes adjusted
-    to the crop, discarding those that do not meet visibility=0.5.
-    - Handles single bounding boxes in annotations[key]['bbox']
-    - Handles multiple bounding boxes in annotations['SIGNATURES']
-    """
+def adjust_widget_bboxes(widgets, offset_y, crop_height):
     updated = {}
-    for key, value in annotations.items():
-        if key == 'SIGNATURES' and isinstance(value, list):
-            # 'SIGNATURES' is a list of bounding boxes
-            new_signatures = []
-            for sign_bbox in value:
-                adjusted_list = adjust_bboxes_single(sign_bbox, offset_y, crop_height, visibility=0.5)
-                if adjusted_list:  # We have an adjusted box that meets threshold
-                    new_signatures.append(adjusted_list[0])
-            if new_signatures:
-                updated[key] = new_signatures
+    for widget_name, widget_dict in widgets.items():
+        #TODO: handle signatures
+        # if widget_name == 'SIGNATURES' and isinstance(widget_dict, list):
+        #     # 'SIGNATURES' is a list of bounding boxes
+        #     new_signatures = []
+        #     for sign_bbox in widget_dict:
+        #         adjusted_list = adjust_bboxes_single(sign_bbox, offset_y, crop_height, visibility=0.5)
+        #         if adjusted_list:  # We have an adjusted box that meets threshold
+        #             new_signatures.append(adjusted_list[0])
+        #     if new_signatures:
+        #         updated[widget_name] = new_signatures
 
+        # else:
+        # Normal single bounding box: 'bbox'
+        if 'bbox' in widget_dict:
+            adjusted_list = adjust_bboxes_single(widget_dict, offset_y, crop_height, visibility=0.5)
+            if adjusted_list:
+                # Keep the rest of 'value' but override 'bbox'
+                new_value = widget_dict.copy()
+                new_value['bbox'] = adjusted_list[0]
+                updated[widget_name] = new_value
         else:
-            # Normal single bounding box: 'bbox'
-            if 'bbox' in value:
-                original_bbox = value['bbox']
-                adjusted_list = adjust_bboxes_single(original_bbox, offset_y, crop_height, visibility=0.5)
-                if adjusted_list:
-                    # Keep the rest of 'value' but override 'bbox'
-                    new_value = value.copy()
-                    new_value['bbox'] = adjusted_list[0]
-                    updated[key] = new_value
-            else:
-                # If there's no 'bbox' field, keep the entry as-is (or skip)
-                updated[key] = value
+            # If there's no 'bbox' field, keep the entry as-is (or skip)
+            updated[widget_name] = widget_dict
 
     return updated
 
@@ -115,7 +110,7 @@ def process_image(image_path, json_path, out_dir, crop_height):
         return
 
     with open(json_path, 'r') as f:
-        annotations = json.load(f)
+        widgets = json.load(f)
 
     # Derive output subdirectories
     img_rel_path = image_path.relative_to(src_dir).parent
@@ -136,19 +131,19 @@ def process_image(image_path, json_path, out_dir, crop_height):
         cv2.imwrite(str(crop_path), crop)
 
         # Adjust the bounding boxes for this specific crop
-        updated_annotations = adjust_bboxes_annotations(annotations, offset_y, crop_height)
+        updated_widgets = adjust_widget_bboxes(widgets, offset_y, crop_height)
 
         # Save updated JSON
         json_name = f"{base_name}_crop_{i}.json"
         json_path = json_out_dir / json_name
         with open(json_path, 'w') as f:
-            json.dump(updated_annotations, f, indent=4)
+            json.dump(updated_widgets, f, indent=4)
 
 # -----------------------------
 # Main Script
 # -----------------------------
 src_dir = Path('out')
-out_dir = Path('out_cropped_images')
+out_dir = Path('out_cropped_vertically')
 
 # Remove old outputs, create fresh directory
 shutil.rmtree(out_dir, ignore_errors=True)
@@ -164,12 +159,7 @@ for idx, image_path in enumerate(image_paths):
     print(f'Processing {idx + 1}/{len(image_paths)}: {image_path}')
     
     json_path = Path(str(image_path).replace('/image/', '/json/').replace('.jpg', '.json'))
-    
-    
-    # print(str(image_path))
-    # print(str(json_path))
-    # exit()
-    
+        
     if json_path.exists():
         process_image(image_path, json_path, out_dir, CROP_HEIGHT)
     else:

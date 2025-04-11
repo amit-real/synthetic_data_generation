@@ -5,7 +5,7 @@ import json
 
 # Configuration
 coco_dir = "split_coco"  # Directory containing COCO train and val datasets
-num_samples = 50  # Number of samples to visualize
+num_samples = 200  # Number of samples to visualize
 
 # Class names
 class_names = [
@@ -13,8 +13,6 @@ class_names = [
     "checkbox_checked",
     "textfield",
     "signature"
-    # "textfield_empty",
-    # "textfield_filled"
 ]
 
 # Define colors
@@ -53,7 +51,7 @@ def plot_image_with_boxes(image_path, boxes, output_path):
 
 # Visualize random samples from COCO format
 def visualize_coco(split):
-    annotation_path = os.path.join(coco_dir, f"{split}.json")
+    annotation_path = os.path.join(coco_dir, 'annotations', f"{split}.json")
     output_dir = f"visualizations/coco/{split}"
     os.makedirs(output_dir, exist_ok=True)
 
@@ -64,7 +62,7 @@ def visualize_coco(split):
 
     for image_info in random_images:
         image_id = image_info["id"]
-        image_path = os.path.join(coco_dir, split, "images", image_info["file_name"])
+        image_path = os.path.join(coco_dir, "images",split, image_info["file_name"])
 
         # Collect annotations for this image
         boxes = []

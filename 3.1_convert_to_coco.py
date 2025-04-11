@@ -9,18 +9,22 @@ class_mapping = {
     "checkbox_checked": 1,
     "textfield": 2,
     "signature": 3
-    # "textfield_empty": 2,
-    # "textfield_filled": 3
 }
 
-def get_class_id(key, value):
-    if "<cb_" in key:
-        return class_mapping["checkbox_checked"] if value["state"] == "checked" else class_mapping["checkbox_unchecked"]
-    elif "<SIGN_" in key:
-        return class_mapping["signature"]
-    else:
-        # return class_mapping["textfield_filled"] if len(value["value"])>0 else class_mapping["textfield_empty"]
-        return class_mapping["textfield"]
+def get_class_id(widget):
+    if widget['widget_type']=='checkbox':
+        if widget['state']=='unchecked':
+            return class_mapping['checkbox_unchecked']
+        if widget['state']=='checked':
+            return class_mapping['checkbox_checked']
+        
+    if widget['widget_type']=='textfield':
+        return class_mapping['textfield']
+    
+    if widget['widget_type']=='signature':
+        return class_mapping['signature']
+    
+    return None
 
 def convert_to_coco(xmin, ymin, xmax, ymax):
     width = xmax - xmin
@@ -37,7 +41,7 @@ def process_coco_annotation(doc_type, json_path, img_name, img_path,
     and copies the image to 'output_dir/images' with a doc_type prefix.
     """
     with open(json_path, "r") as f:
-        data = json.load(f)
+        widgets = json.load(f)
 
     # Add image metadata
     prefixed_name = f"{doc_type}_{img_name}"
@@ -49,9 +53,12 @@ def process_coco_annotation(doc_type, json_path, img_name, img_path,
     })
 
     # Process annotations
-    for key, value in data.items():
-        class_id = get_class_id(key, value)
-        bbox = value["bbox"]
+    for widget_name, widget_dict in widgets.items():
+        class_id = get_class_id(widget_dict)
+        if class_id is None:
+            continue
+        
+        bbox = widget_dict["bbox"]
         xmin, ymin, xmax, ymax = bbox["xmin"], bbox["ymin"], bbox["xmax"], bbox["ymax"]
         coco_bbox, area = convert_to_coco(xmin, ymin, xmax, ymax)
 
@@ -97,16 +104,8 @@ def traverse_and_convert_coco(root_dir, output_dir):
     processed_count = 0
     for json_path in json_files:
         parts = json_path.split(os.sep)
-        # e.g. augmented_images/<doc_type>/.../file.json
-        # doc_type is typically parts[-3], assuming structure: 
-        # augmented_images/<doc_type>/json/file.json
         doc_type = parts[-3]
-
-        # Derive the image name from the JSON name
         img_name = os.path.basename(json_path).replace(".json", ".jpg")
-        # Derive the image path by replacing 'json' with 'image' 
-        # and setting the correct .jpg file
-        # NOTE: Adjust as needed for your folder structure
         img_dir = json_path.replace("json", "image").rsplit("/", 1)[0]
         img_path = os.path.join(img_dir, img_name)
 
