@@ -8,7 +8,7 @@ output_dir = "split_yolo"  # Directory to save the split datasets
 shutil.rmtree(output_dir, ignore_errors=True)  # Clear previous output
 os.makedirs(output_dir)  # Create output directory
 
-train_ratio = 0.8  # Ratio for train split
+train_ratio = 0.9  # Ratio for train split
 
 # Create split directories
 def create_split_dirs():

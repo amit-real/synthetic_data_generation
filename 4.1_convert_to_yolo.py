@@ -8,9 +8,7 @@ class_mapping = {
     "checkbox_unchecked": 0,
     "checkbox_checked": 1,
     "textfield": 2,
-    "signature": 3
-    # "textfield_empty": 2,
-    # "textfield_filled": 3
+    # "signature": 3
 }
 
 def get_class_id(widget):
