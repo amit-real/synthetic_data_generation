@@ -5,7 +5,7 @@ import json
 
 # Configuration
 coco_dir = "split_coco"  # Directory containing COCO train and val datasets
-num_samples = 200  # Number of samples to visualize
+num_samples = 500  # Number of samples to visualize
 
 # Class names
 class_names = [
@@ -20,9 +20,7 @@ colors = {
     "checkbox_unchecked": (0, 0, 255),  # Red
     "checkbox_checked": (0, 255, 0),    # Green
     "textfield": (255, 0, 0),           # Blue
-    "signature": (255, 255, 0)          # Cyan
-    # "textfield_empty": (0, 255, 0),     # Red
-    # "textfield_filled": (0, 255, 0)     # Green
+    # "signature": (255, 255, 0)          # Cyancd
 }
 
 # Function to plot bounding boxes and save images

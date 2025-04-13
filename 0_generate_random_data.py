@@ -240,7 +240,7 @@ def add_random_checkboxes(page: fitz.Page) -> tuple[fitz.Page, dict]:
         center_x = (xmin + xmax) / 2
         center_y = (ymin + ymax) / 2
         base_size = min(width, height)
-        font_size = int(base_size * random.uniform(0.9, 1.4))  # experiment with 0.6–0.9
+        font_size = int(base_size * random.uniform(0.9, 1.6))  # experiment with 0.6–0.9
 
         # outer_radius = (xmax-xmin)
         # font_size = int(outer_radius * random.uniform(1, 1.8))
