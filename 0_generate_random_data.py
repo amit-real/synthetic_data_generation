@@ -12,6 +12,13 @@ import string
 from faker import Faker
 
 
+def do_bboxes_overlap(bbox1: dict, bbox2: dict) -> bool:
+    if (bbox1['xmax'] <= bbox2['xmin'] or bbox1['xmin'] >= bbox2['xmax'] or
+        bbox1['ymax'] <= bbox2['ymin'] or bbox1['ymin'] >= bbox2['ymax']):
+        return False
+    return True
+
+
 def get_page_raster(page: fitz.Page, target_width: int, target_height: int) -> np.ndarray:
     scale_w = target_width / page.rect.width
     scale_h = target_height / page.rect.height
@@ -95,8 +102,8 @@ def get_page_widgets(page: fitz.Page, target_width: int, target_height: int) -> 
             
         widgets_list.append(tmp_dict)
     return widgets_list
+      
             
-
 def get_xstart_ystart(widget_type: str, text: str, xmin: int, ymin: 
                       int, xmax: int, ymax: int, font_size: int
                       ) -> tuple:
@@ -221,33 +228,28 @@ def add_signatures_to_textfields(page, signature_dir):
     
     return page, gt
 
-    
-def add_random_checkboxes(page: fitz.Page) -> tuple[fitz.Page, dict]:
-    page.insert_font(fontfile='DejaVuSans.ttf', fontname="DVS")
+
+def add_random_checkboxes(page: fitz.Page, copy_paste: bool = True) -> tuple[fitz.Page, dict]:
+    font = 'DVS'
+    page.insert_font(fontfile='DejaVuSans.ttf', fontname=font)
+    page_w, page_h = int(page.rect.width), int(page.rect.height)
     gt = {}
 
     for widget in page.widgets():
         widget_name = widget.field_name
         widget_type = widget.field_type_string
-        
-        if widget_type!='CheckBox':
+
+        if widget_type != 'CheckBox':
             continue
 
-        font = 'DVS'
-        xmin, ymin, xmax, ymax = widget.rect.x0, widget.rect.y0, widget.rect.x1, widget.rect.y1
+        xmin, ymin, xmax, ymax = widget.rect
         width = xmax - xmin
         height = ymax - ymin
-        center_x = (xmin + xmax) / 2
-        center_y = (ymin + ymax) / 2
-        base_size = min(width, height)
-        font_size = int(base_size * random.uniform(0.9, 1.6))  # experiment with 0.6–0.9
-
-        # outer_radius = (xmax-xmin)
-        # font_size = int(outer_radius * random.uniform(1, 1.8))
-        
+        font_size = int(min(width, height) * random.uniform(0.9, 1.6))
         page.delete_widget(widget)
-        
-        if random.random() > 0.5:
+
+        # keep 40% cboxes empty
+        if random.random() <= 0.4:
             gt[widget_name] = {
                 "widget_type": "checkbox",
                 "state": "unchecked",
@@ -258,34 +260,79 @@ def add_random_checkboxes(page: fitz.Page) -> tuple[fitz.Page, dict]:
         r,g,b = 0,0,0
         if random.random()>0.5:
             r,g,b = random.randint(1, 200), random.randint(1, 200), random.randint(1, 200)
-            
+        r, g, b = r/256, g/256, b/256 
         symbol = random.choice(["●", "◉", "✖", "X", "✔", "✓"])
-        
-        page.insert_text(
-                        (xmin, ymax),
-                        # (center_x, center_y), 
-                        symbol,
-                        fontsize=font_size,
-                        color=(r / 255, g / 255, b / 255),
-                        fontname=font)
-        
+        page.insert_text((xmin + 1, ymax - 2), symbol, fontsize=font_size, fontname=font, color=(0, 0, 0))
+
         gt[widget_name] = {
             "widget_type": "checkbox",
             "state": "checked",
             "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
         }
-  
+
+    # Copy-paste augmentation
+    if copy_paste and len(gt)>0:
+        for copied_idx in range(random.randint(1, max(len(gt), 10))):
+            src_key = random.choice(list(gt.keys()))
+            src_cbox = gt[src_key]
+            bbox = src_cbox['bbox']
+            width =  bbox['xmax'] - bbox['xmin']
+            height = bbox['ymax'] - bbox['ymin']
+            font_size = int(min(width, height) * random.uniform(0.9, 1.6))
+            
+            for _ in range(20):
+                xmin = random.randint(0, page_w)
+                ymin = random.randint(0, page_h)
+                xmax = xmin + width
+                ymax = ymin + height
+                
+                if xmax>=page_w or ymax>=page_h:
+                    continue
+                
+                does_overlap = False
+                for key, gt_cbox in gt.items():
+                    copied_bbox = {'xmin': xmin, 'ymin':ymin, 'xmax':xmax, 'ymax':ymax}
+                    gt_bbox = gt_cbox['bbox']
+                    if do_bboxes_overlap(copied_bbox,gt_bbox)==True:
+                        does_overlap = True
+                        break
+                if not does_overlap:
+                    break                
+
+            # Whiten background
+            pad_px = 3
+            white_background = fitz.Rect(xmin-pad_px, ymin-pad_px, xmax+pad_px, ymax+pad_px)
+            cbox_boundary = fitz.Rect(xmin, ymin, xmax, ymax)
+            page.draw_rect(white_background, color=(1, 1, 1), fill=(1, 1, 1), width=0)
+            page.draw_rect(cbox_boundary, color=(0, 0, 0), width=random.uniform(1, 2))
+            
+            r,g,b = 0,0,0
+            if random.random()>0.4:
+                r,g,b = random.randint(1, 200), random.randint(1, 200), random.randint(1, 200)
+            r,g,b = r/256, g/256, b/256
+            
+            symbol = random.choice(["●", "◉", "✖", "X", "✔", "✓"])
+            page.insert_text((xmin, ymax), symbol, fontsize=font_size, color=(r,g,b), fontname=font)
+
+            gt[f"<cb_COPIED_{copied_idx}>"] = {
+                "widget_type": "checkbox",
+                "state": "checked",
+                "bbox": {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
+            }
+
     return page, gt
 
 
 def remove_accents(text: str) -> str:
     return ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn' and ord(c) < 128)
 
+
 def trim_text_to_width(text: str, max_width: int, font_size: int=13, char_width: int=7) -> str:
     max_chars = int(max_width / (char_width * (font_size / 13)))
     if len(text) > max_chars:
         return text[:max_chars - 2]
     return text
+
 
 def select_text_widthwise(fake_dict: dict, max_chars: int) -> str:
     min_len_diff = 10000
@@ -301,6 +348,7 @@ def select_text_widthwise(fake_dict: dict, max_chars: int) -> str:
         return min_dif_text[:max_chars - 2]  
 
     return min_dif_text
+
 
 def scale_coords(
     json_data: dict[str, dict], 
@@ -323,6 +371,7 @@ def scale_coords(
         }
 
     return json_data
+
 
 def generate_fake_data():
     locales = [
@@ -656,22 +705,22 @@ def add_fake_textfield_data_bak(page: fitz.Page) -> tuple[fitz.Page, dict[str, s
 
 
 def add_fake_data(page: fitz.Page) -> tuple[fitz.Page, dict]:
-    page, gt_checkboxes = add_random_checkboxes(page)
     page, gt_textfield = add_fake_textfield_data(page)
+    page, gt_checkboxes = add_random_checkboxes(page, copy_paste=True)
     # page, gt_signatures = add_signatures_to_textfields(page, signature_dir)
-    gt = {**gt_checkboxes, **gt_textfield} #, **gt_signatures}
+    gt = {**gt_textfield, **gt_checkboxes} #, **gt_signatures}
     return page, gt
 
 
 PAGE_WIDTH, PAGE_HEIGHT = 2048, 2650
-SAMPLES_PER_PAGE = 5
+SAMPLES_PER_PAGE = 1
 SUPPORTED_TYPES = ['checkbox', 'name', 'company', 'date', 'license', 'county', 'city', 
                    'initials', 'address', 'sentence', 'number', 'initials', 'country',
                    'word'
                     ]
 
-template_pdf_dir = Path('../TEMPLATE_PDF/annotated_pdfs')
-signature_dir = Path('../TEMPLATE_PDF/signatures')
+template_pdf_dir = Path('TEMPLATE_PDF/annotated_pdfs')
+signature_dir = Path('TEMPLATE_PDF/signatures')
 pdf_paths = list(template_pdf_dir.rglob('*.pdf'))
 
 out_dir = Path('out')
@@ -704,6 +753,9 @@ for idx, pdf_path in enumerate(pdf_paths):
             #     bbox = entry['bbox']
             #     xmin, ymin, xmax, ymax = bbox['xmin'], bbox['ymin'], bbox['xmax'], bbox['ymax']
             #     xmin, ymin, xmax, ymax = int(xmin), int(ymin), int(xmax), int(ymax)
+            #     if '_COPIED_' in field_name:
+            #         cv2.rectangle(img, (xmin, ymin), (xmax, ymax), (0, 0, 255), 2)
+            #         continue
             #     cv2.rectangle(img, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
 
             # cv2.imwrite(out_dir/pdf_name/"plot"/f'{page_num+1}_{sample_no}_bbox.jpg', img)
