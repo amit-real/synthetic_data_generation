@@ -808,7 +808,7 @@ def add_fake_data(page: fitz.Page) -> tuple[fitz.Page, dict]:
 
 
 PAGE_WIDTH, PAGE_HEIGHT = 2048, 2650
-SAMPLES_PER_PAGE = 2
+SAMPLES_PER_PAGE = 5
 SUPPORTED_TYPES = ['checkbox', 'name', 'company', 'date', 'license', 'county', 'city', 
                    'initials', 'address', 'sentence', 'number', 'initials', 'country',
                    'word']
@@ -828,7 +828,7 @@ for idx, pdf_path in enumerate(pdf_paths):
 
     os.makedirs(out_dir/pdf_name/"image", exist_ok=True)
     os.makedirs(out_dir/pdf_name/"json", exist_ok=True)
-    os.makedirs(out_dir/pdf_name/"plot", exist_ok=True)
+    # os.makedirs(out_dir/pdf_name/"plot", exist_ok=True)
 
     for page_num in range(page_nums):
         for sample_no in range(SAMPLES_PER_PAGE):
