@@ -102,8 +102,8 @@ def get_page_widgets(page: fitz.Page, target_width: int, target_height: int) -> 
             
         widgets_list.append(tmp_dict)
     return widgets_list
-      
             
+
 def get_xstart_ystart(widget_type: str, text: str, xmin: int, ymin: 
                       int, xmax: int, ymax: int, font_size: int
                       ) -> tuple:
@@ -142,16 +142,49 @@ def get_xstart_ystart(widget_type: str, text: str, xmin: int, ymin:
         return x_start, y_start
 
 
-def add_signatures_to_textfields(page, signature_dir):
-    signature_dir = Path(signature_dir)
-    signature_files = list(signature_dir.rglob('*.png')) + list(signature_dir.rglob('*.jpg'))
+def get_fontsize_for_target_height(fontfile: str, target_height_px: float) -> float:
+    font = fitz.Font(fontfile=fontfile)
+    ascender = font.ascender
+    descender = abs(font.descender)
+    total_font_units = ascender + descender
+    fontsize = target_height_px / total_font_units
+    return fontsize
+
+
+def get_font_baseline_y(fontfile: str, fontsize: float, ymin: float, ymax: float) -> float:
+    font = fitz.Font(fontfile=fontfile)
     
-    if not signature_files:
-        print(f"No signature files found in {signature_dir}")
+    ascent = font.ascender / 1000 * fontsize
+    descent = abs(font.descender) / 1000 * fontsize
+
+    bbox_height = ymax - ymin
+    baseline_y = ymin + (bbox_height + (ascent - descent)) / 2
+
+    return baseline_y
+
+
+def add_signatures_to_textfields(page, sign_enclosure_dir):
+    font_names = os.listdir('TEMPLATE_PDF/fonts')
+    font_dict = {i: f'TEMPLATE_PDF/fonts/{i}' for i in font_names}
+
+    for font_name in font_dict:
+        page.insert_font(fontfile=font_dict[font_name], fontname=font_name)   
+    
+    sign_enclosure_files = os.listdir(sign_enclosure_dir) 
+    
+    if not sign_enclosure_files:
+        print(f"No signature files found in {sign_enclosure_dir}")
         return page, {}
     
     gt = {}
     sign_count = 0
+
+    locales = [
+        'en_US', 'en_GB', 'en_CA', 'en_AU', 'en_NZ', 'en_IE',  # English-speaking
+        'en_IN',# 'ja_JP', 'ko_KR', 'zh_CN', 'zh_TW',  # Asian
+        'fr_FR', 'de_DE', 'it_IT', 'nl_NL', 'pt_PT',  # European
+        'es_MX', 'es_ES', 'es_CO', 'es_AR', 'es_CL'  # Spanish-speaking (Latin America and Europe)
+    ]
 
     for widget in page.widgets():
         widget_name = widget.field_name
@@ -160,15 +193,15 @@ def add_signatures_to_textfields(page, signature_dir):
         if widget_type!='Text':
             continue
 
-        if random.random() > 0.4:
+        if random.random() > 0.3:
             continue
 
         xmin, ymin, xmax, ymax = widget.rect
         widget_w, widget_h = xmax - xmin, ymax - ymin
         
-        sig_filename = random.choice(signature_files)
-        
-        with open(str(sig_filename), "rb") as img_file:
+        sign_filename = random.choice(sign_enclosure_files)
+        sign_path = sign_enclosure_dir/sign_filename
+        with open(str(sign_path), "rb") as img_file:
             signature_bytes = img_file.read()
         
         img_rect = fitz.Rect(0, 0, 0, 0)
@@ -190,48 +223,112 @@ def add_signatures_to_textfields(page, signature_dir):
                 continue
                  
         sign_aspect_ratio = img_rect.width / img_rect.height
-        target_height = int(widget_h * random.uniform(1.5, 2.1))
+        target_height = int(widget_h * random.uniform(1.3, 2.5))
         target_width = int(target_height * sign_aspect_ratio)
         
-        if target_width > widget_w * 0.9:
+        if target_width >= widget_w * 0.8:
             target_width = int(widget_w * 0.9)
             target_height = int(target_width / sign_aspect_ratio)
                 
         position = random.choice(['start', 'center'])
 
         if position == 'start':
-            x_pos = xmin + random.uniform(-20, 20)
-            y_pos = ymin + (widget_h - target_height) / 2 + random.uniform(-10, 10)
-       
+            img_xmin = xmin + random.uniform(-5, 20)
+            img_ymin = ymin - random.choice(list(range(-5,20)))
+            img_xmax = img_xmin + target_width
+            img_ymax = img_ymin + target_height
+            if img_xmin>=img_xmax or img_ymin>=img_ymax:
+                continue
+        
         elif position=='center':
-            x_pos = xmin + (widget_w - target_width) / 2 + random.uniform(-10, 10)
-            y_pos = ymin + (widget_h - target_height) / 2 + random.uniform(-10, 10)
+            img_xmin = xmin + (widget_w - target_width) / 2 + random.uniform(-5, 10)
+            img_ymin = ymin - random.choice(list(range(-5,20)))
+            img_xmax = img_xmin + target_width
+            img_ymax = img_ymin + target_height
+            if img_xmin>=img_xmax or img_ymin>=img_ymax:
+                continue
             
-        x_pos = max(xmin, min(x_pos, xmax - target_width))
-        y_pos = max(ymin, min(y_pos, ymax - target_height))
+        if 'real' not in sign_filename:
+            # print(sign_filename, img_xmin, img_ymin, img_xmax, img_ymax)
+            rect = fitz.Rect(img_xmin, img_ymin, img_xmax, img_ymax)
+            page.insert_image(rect, stream=signature_bytes)
+            if img_xmin>=img_xmax or img_ymin>=img_ymax:
+                continue
         
-        rect = fitz.Rect(x_pos, y_pos, x_pos + target_width, y_pos + target_height)
-        page.insert_image(rect, stream=signature_bytes)
+        r,g,b = 0,0,0
+        if random.random()>0.7:
+            r,g,b = random.randint(1, 200), random.randint(1, 200), random.randint(1, 200)
+        r,g,b = r/256, g/256, b/256
         
+        locale = random.choice(locales)
+        localized_fake = Faker(locale)
+        first_name = localized_fake.first_name()
+        
+        font_name = random.choice(list(font_dict.keys()))
+        font_path = font_dict[font_name]
+        font = fitz.Font(fontfile=font_path)
+        
+        text_height = (img_ymax-img_ymin)*random.uniform(0.8, 1.2)
+        font_size = get_fontsize_for_target_height(font_path, text_height)
+        text_width = font.text_length(first_name, fontsize=font_size)
+        
+        text_xmin = img_xmin + random.randint(1, 10)
+        text_xmax = text_xmin + text_width
+        text_ymax = img_ymax - random.randint(1, 5)
+        text_ymin = text_ymax - text_height
+        
+        #if its purple colored logo, then we need to shift it to the right
+        if 'real' in sign_filename:
+            text_height = (ymax-ymin)*random.uniform(1.5, 2)
+            font_size = get_fontsize_for_target_height(font_path, text_height)
+            text_width = font.text_length(first_name, fontsize=font_size)
+            
+            text_xmin = xmin + random.randint(5, 10)
+            text_xmax = text_xmin + text_width
+            text_ymin = ymin  
+            text_ymax = ymax
+            
+            img_height = widget_h * random.uniform(0.4, 0.8)
+            img_ymin = text_ymin + random.choice(list(range(2, 5)))
+            img_ymax = img_ymin + img_height
+
+            # recompute width using original aspect ratio
+            img_width = img_height * sign_aspect_ratio
+            img_xmin = text_xmax + random.uniform(2, 5)
+            img_xmax = img_xmin + img_width
+            
+            rect = fitz.Rect(img_xmin, img_ymin, img_xmax, img_ymax)
+            page.insert_image(rect, stream=signature_bytes)
+            
+        text_y_baseline = text_ymax - 2
+        
+        page.insert_text(
+            (text_xmin, text_y_baseline),
+            first_name,
+            fontname=font_name,
+            fontsize = font_size,
+            color=(r, g, b)
+        )
+
         tmp_dict =  {
-            "widget_type": "signature",
+            "type": "signature",
             "value": "signature",
             "bbox":{
-                "xmin": int(x_pos),
-                "ymin": int(y_pos),
-                "xmax": int(x_pos + target_width),
-                "ymax": int(y_pos + target_height),
-            }
+                    "xmin": min(img_xmin, text_xmin),
+                    "ymin": min(img_ymin, text_ymin),
+                    "xmax": max(img_xmax, text_xmax),
+                    "ymax": max(img_ymax, text_ymax)
+                    }
         }
         gt[f"<SIGN_{sign_count}>"] = tmp_dict
         sign_count += 1
     
     return page, gt
 
-
+    
 def add_random_checkboxes(page: fitz.Page, copy_paste: bool = True) -> tuple[fitz.Page, dict]:
     font = 'DVS'
-    page.insert_font(fontfile='DejaVuSans.ttf', fontname=font)
+    page.insert_font(fontfile='TEMPLATE_PDF/fonts/DejaVuSans.ttf', fontname=font)
     page_w, page_h = int(page.rect.width), int(page.rect.height)
     gt = {}
 
@@ -326,13 +423,11 @@ def add_random_checkboxes(page: fitz.Page, copy_paste: bool = True) -> tuple[fit
 def remove_accents(text: str) -> str:
     return ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn' and ord(c) < 128)
 
-
 def trim_text_to_width(text: str, max_width: int, font_size: int=13, char_width: int=7) -> str:
     max_chars = int(max_width / (char_width * (font_size / 13)))
     if len(text) > max_chars:
         return text[:max_chars - 2]
     return text
-
 
 def select_text_widthwise(fake_dict: dict, max_chars: int) -> str:
     min_len_diff = 10000
@@ -376,7 +471,7 @@ def scale_coords(
 def generate_fake_data():
     locales = [
         'en_US', 'en_GB', 'en_CA', 'en_AU', 'en_NZ', 'en_IE',  # English-speaking
-        'en_IN', 'ja_JP', 'ko_KR', 'zh_CN', 'zh_TW',  # Asian
+        'en_IN', #'ja_JP', 'ko_KR', 'zh_CN', 'zh_TW',  # Asian
         'fr_FR', 'de_DE', 'it_IT', 'nl_NL', 'pt_PT',  # European
         'es_MX', 'es_ES', 'es_CO', 'es_AR', 'es_CL'  # Spanish-speaking (Latin America and Europe)
     ]
@@ -705,27 +800,27 @@ def add_fake_textfield_data_bak(page: fitz.Page) -> tuple[fitz.Page, dict[str, s
 
 
 def add_fake_data(page: fitz.Page) -> tuple[fitz.Page, dict]:
-    page, gt_textfield = add_fake_textfield_data(page)
     page, gt_checkboxes = add_random_checkboxes(page, copy_paste=True)
-    # page, gt_signatures = add_signatures_to_textfields(page, signature_dir)
-    gt = {**gt_textfield, **gt_checkboxes} #, **gt_signatures}
+    page, gt_textfield = add_fake_textfield_data(page)
+    page, gt_signatures = add_signatures_to_textfields(page, signature_enclosure_dir)
+    gt = {**gt_checkboxes, **gt_textfield, **gt_signatures}
     return page, gt
 
 
 PAGE_WIDTH, PAGE_HEIGHT = 2048, 2650
-SAMPLES_PER_PAGE = 1
+SAMPLES_PER_PAGE = 2
 SUPPORTED_TYPES = ['checkbox', 'name', 'company', 'date', 'license', 'county', 'city', 
                    'initials', 'address', 'sentence', 'number', 'initials', 'country',
-                   'word'
-                    ]
+                   'word']
 
 template_pdf_dir = Path('TEMPLATE_PDF/annotated_pdfs')
-signature_dir = Path('TEMPLATE_PDF/signatures')
 pdf_paths = list(template_pdf_dir.rglob('*.pdf'))
 
+signature_enclosure_dir = Path('TEMPLATE_PDF/signature_enclosures')
 out_dir = Path('out')
 shutil.rmtree(out_dir, ignore_errors=True)
 os.makedirs(out_dir)
+
 
 for idx, pdf_path in enumerate(pdf_paths):
     pdf_name = pdf_path.name    
@@ -733,19 +828,19 @@ for idx, pdf_path in enumerate(pdf_paths):
 
     os.makedirs(out_dir/pdf_name/"image", exist_ok=True)
     os.makedirs(out_dir/pdf_name/"json", exist_ok=True)
-    # os.makedirs(out_dir/pdf_name/"plot", exist_ok=True)
+    os.makedirs(out_dir/pdf_name/"plot", exist_ok=True)
 
     for page_num in range(page_nums):
         for sample_no in range(SAMPLES_PER_PAGE):
             print(f"{idx+1}/{len(pdf_paths)} {page_num+1}/{page_nums} {sample_no+1}/{SAMPLES_PER_PAGE}  {pdf_path}")
             doc = fitz.open(str(pdf_path))
             page = doc.load_page(page_num)
-
+            
             page, gt = add_fake_data(page)
             gt = scale_coords(gt, page, PAGE_WIDTH, PAGE_HEIGHT)
             img = get_page_raster(page, PAGE_WIDTH, PAGE_HEIGHT)
-            doc.close
-
+            doc.close()
+           
             json.dump(gt, open(out_dir/pdf_name/"json"/f'{page_num+1}_{sample_no}.json', 'w'), indent=4)
             cv2.imwrite(out_dir/pdf_name/"image"/f'{page_num+1}_{sample_no}.jpg', img)
 
@@ -753,11 +848,8 @@ for idx, pdf_path in enumerate(pdf_paths):
             #     bbox = entry['bbox']
             #     xmin, ymin, xmax, ymax = bbox['xmin'], bbox['ymin'], bbox['xmax'], bbox['ymax']
             #     xmin, ymin, xmax, ymax = int(xmin), int(ymin), int(xmax), int(ymax)
-            #     if '_COPIED_' in field_name:
-            #         cv2.rectangle(img, (xmin, ymin), (xmax, ymax), (0, 0, 255), 2)
-            #         continue
             #     cv2.rectangle(img, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
 
             # cv2.imwrite(out_dir/pdf_name/"plot"/f'{page_num+1}_{sample_no}_bbox.jpg', img)
-
+   
 print('Done...!')
