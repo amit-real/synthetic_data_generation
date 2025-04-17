@@ -11,7 +11,7 @@ class_names = [
     "checkbox_unchecked",
     "checkbox_checked",
     "textfield",
-    # "signature"
+    "signature"
 ]
 
 # Define colors

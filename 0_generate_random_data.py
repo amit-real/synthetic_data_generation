@@ -311,7 +311,7 @@ def add_signatures_to_textfields(page, sign_enclosure_dir):
         )
 
         tmp_dict =  {
-            "type": "signature",
+            "widget_type": "signature",
             "value": "signature",
             "bbox":{
                     "xmin": min(img_xmin, text_xmin),

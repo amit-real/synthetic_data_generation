@@ -12,7 +12,7 @@ class_names = [
     "checkbox_unchecked",
     "checkbox_checked",
     "textfield",
-    # "signature"
+    "signature"
 ]
 
 # Define colors
@@ -20,7 +20,7 @@ colors = {
     "checkbox_unchecked": (0, 0, 255),  # Red
     "checkbox_checked": (0, 255, 0),    # Green
     "textfield": (255, 0, 0),           # Blue
-    # "signature": (255, 255, 0)          # Cyancd
+    "signature": (255, 255, 0)          # Cyancd
 }
 
 # Function to plot bounding boxes and save images

@@ -121,4 +121,11 @@ for idx, image_path in enumerate(image_paths):
     os.makedirs(json_out_dir, exist_ok=True)
     out_json_path = json_out_dir / json_name
 
-    process_augmentation(image_path, json_path, out_img_path, out_json_path)
+    try:
+        process_augmentation(image_path, json_path, out_img_path, out_json_path)
+    except Exception as e:
+        if os.path.exists(out_img_path):
+            os.unlink(out_img_path)
+        if os.path.exists(out_json_path):
+            os.unlink(out_json_path)
+        print(e)
