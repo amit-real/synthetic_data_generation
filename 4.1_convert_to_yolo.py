@@ -121,8 +121,8 @@ def traverse_and_convert_yolo(root_dir, output_dir):
         print(f"Processed {processed_count}/{total_files}")
 
 # Configuration
-root_dir = "augmented_images"
-output_dir = "converted_yolo"
+root_dir = "out_2_augmented_images"
+output_dir = "out_4.1_converted_yolo"
 
 # Clear previous output
 shutil.rmtree(output_dir, ignore_errors=True)

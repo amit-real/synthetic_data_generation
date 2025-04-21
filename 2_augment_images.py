@@ -93,8 +93,8 @@ def process_augmentation(image_path, json_path, out_img_path, out_json_path):
         json.dump(updated_annotations, f, indent=4)
 
 # ------------------ Main Execution ------------------
-cropped_dir = Path('out_cropped_vertically')
-out_dir = Path('augmented_images')
+cropped_dir = Path('out_1_cropped_images')
+out_dir = Path('out_2_augmented_images')
 shutil.rmtree(out_dir, ignore_errors=True)
 os.makedirs(out_dir)
 

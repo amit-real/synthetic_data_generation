@@ -142,8 +142,8 @@ def process_image(image_path, json_path, out_dir, crop_height):
 # -----------------------------
 # Main Script
 # -----------------------------
-src_dir = Path('out')
-out_dir = Path('out_cropped_vertically')
+src_dir = Path('out_0_random_images')
+out_dir = Path('out_1_cropped_images')
 
 # Remove old outputs, create fresh directory
 shutil.rmtree(out_dir, ignore_errors=True)

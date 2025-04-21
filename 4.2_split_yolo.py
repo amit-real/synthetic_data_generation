@@ -3,8 +3,8 @@ import shutil
 import random
 
 # Configuration
-yolo_dir = "converted_yolo"  # Directory containing YOLO images and labels
-output_dir = "split_yolo"  # Directory to save the split datasets
+yolo_dir = "out_4.1_converted_yolo"  # Directory containing YOLO images and labels
+output_dir = "out_4.2_split_yolo"  # Directory to save the split datasets
 shutil.rmtree(output_dir, ignore_errors=True)  # Clear previous output
 os.makedirs(output_dir)  # Create output directory
 

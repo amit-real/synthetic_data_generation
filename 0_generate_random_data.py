@@ -803,12 +803,12 @@ def add_fake_data(page: fitz.Page) -> tuple[fitz.Page, dict]:
     page, gt_checkboxes = add_random_checkboxes(page, copy_paste=True)
     page, gt_textfield = add_fake_textfield_data(page)
     page, gt_signatures = add_signatures_to_textfields(page, signature_enclosure_dir)
-    gt = {**gt_checkboxes, **gt_textfield, **gt_signatures}
+    gt = {**gt_checkboxes, **gt_signatures} #{**gt_checkboxes, **gt_textfield, **gt_signatures}
     return page, gt
 
 
 PAGE_WIDTH, PAGE_HEIGHT = 2048, 2650
-SAMPLES_PER_PAGE = 5
+SAMPLES_PER_PAGE = 3
 SUPPORTED_TYPES = ['checkbox', 'name', 'company', 'date', 'license', 'county', 'city', 
                    'initials', 'address', 'sentence', 'number', 'initials', 'country',
                    'word']
@@ -817,7 +817,7 @@ template_pdf_dir = Path('TEMPLATE_PDF/annotated_pdfs')
 pdf_paths = list(template_pdf_dir.rglob('*.pdf'))
 
 signature_enclosure_dir = Path('TEMPLATE_PDF/signature_enclosures')
-out_dir = Path('out')
+out_dir = Path('out_0_random_images')
 shutil.rmtree(out_dir, ignore_errors=True)
 os.makedirs(out_dir)
 

@@ -152,7 +152,7 @@ def traverse_and_convert_coco(root_dir, output_dir):
     print("COCO conversion and image copying complete.")
 
 # Configuration
-root_dir = "augmented_images"  # Root directory containing doc-type folders, images, and JSON
-output_dir = "converted_coco"  # Where COCO annotations + prefixed images will go
+root_dir = "out_2_augmented_images"  # Root directory containing doc-type folders, images, and JSON
+output_dir = "out_3.1_converted_coco"  # Where COCO annotations + prefixed images will go
 
 traverse_and_convert_coco(root_dir, output_dir)

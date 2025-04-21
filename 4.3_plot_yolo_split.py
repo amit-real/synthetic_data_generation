@@ -3,7 +3,7 @@ import random
 import cv2
 
 # Configuration
-yolo_dir = "split_yolo"  # Directory containing YOLO train and val datasets
+yolo_dir = "out_4.2_split_yolo"  # Directory containing YOLO train and val datasets
 num_samples = 500  # Number of samples to visualize
 
 # Class names
@@ -57,7 +57,7 @@ def plot_image_with_boxes(image_path, boxes, output_path):
 def visualize_yolo(split):
     label_dir = os.path.join(yolo_dir, split, "labels")
     image_dir = os.path.join(yolo_dir, split, "images")
-    output_dir = f"visualizations/yolo/{split}"
+    output_dir = f"{yolo_dir}/{split}"
     os.makedirs(output_dir, exist_ok=True)
 
     label_files = [f for f in os.listdir(label_dir) if f.endswith(".txt")]

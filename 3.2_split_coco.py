@@ -4,8 +4,8 @@ import shutil
 import random
 
 # Configuration
-coco_dir = "converted_coco"  # Directory containing COCO images and annotations
-output_dir = "split_coco"  # Directory to save the split datasets
+coco_dir = "out_3.1_converted_coco"  # Directory containing COCO images and annotations
+output_dir = "out_3.2_split_coco"  # Directory to save the split datasets
 shutil.rmtree(output_dir, ignore_errors=True)  # Clear previous output
 os.makedirs(output_dir)  # Create output directory
 

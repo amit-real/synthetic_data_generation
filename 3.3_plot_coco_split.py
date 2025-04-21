@@ -4,7 +4,7 @@ import cv2
 import json
 
 # Configuration
-coco_dir = "split_coco"  # Directory containing COCO train and val datasets
+coco_dir = "out_3.2_split_coco"  # Directory containing COCO train and val datasets
 num_samples = 500  # Number of samples to visualize
 
 # Class names
@@ -50,7 +50,7 @@ def plot_image_with_boxes(image_path, boxes, output_path):
 # Visualize random samples from COCO format
 def visualize_coco(split):
     annotation_path = os.path.join(coco_dir, 'annotations', f"{split}.json")
-    output_dir = f"visualizations/coco/{split}"
+    output_dir = f"{coco_dir}/{split}"
     os.makedirs(output_dir, exist_ok=True)
 
     with open(annotation_path, "r") as f:
