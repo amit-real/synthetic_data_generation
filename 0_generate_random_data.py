@@ -802,8 +802,8 @@ def add_fake_textfield_data_bak(page: fitz.Page) -> tuple[fitz.Page, dict[str, s
 def add_fake_data(page: fitz.Page) -> tuple[fitz.Page, dict]:
     page, gt_checkboxes = add_random_checkboxes(page, copy_paste=True)
     page, gt_textfield = add_fake_textfield_data(page)
-    page, gt_signatures = add_signatures_to_textfields(page, signature_enclosure_dir)
-    gt = {**gt_checkboxes, **gt_signatures} #{**gt_checkboxes, **gt_textfield, **gt_signatures}
+    # page, gt_signatures = add_signatures_to_textfields(page, signature_enclosure_dir)
+    gt = {**gt_checkboxes, **gt_textfield}#, **gt_signatures} 
     return page, gt
 
 
@@ -813,6 +813,8 @@ SUPPORTED_TYPES = ['checkbox', 'name', 'company', 'date', 'license', 'county', '
                    'initials', 'address', 'sentence', 'number', 'initials', 'country',
                    'word']
 
+SAVE_PDFS = True
+
 template_pdf_dir = Path('TEMPLATE_PDF/annotated_pdfs')
 pdf_paths = list(template_pdf_dir.rglob('*.pdf'))
 
@@ -820,8 +822,7 @@ signature_enclosure_dir = Path('TEMPLATE_PDF/signature_enclosures')
 out_dir = Path('out_0_random_images')
 shutil.rmtree(out_dir, ignore_errors=True)
 os.makedirs(out_dir)
-
-
+# exit()
 for idx, pdf_path in enumerate(pdf_paths):
     pdf_name = pdf_path.name    
     page_nums = len(fitz.open(str(pdf_path)))
@@ -829,18 +830,26 @@ for idx, pdf_path in enumerate(pdf_paths):
     os.makedirs(out_dir/pdf_name/"image", exist_ok=True)
     os.makedirs(out_dir/pdf_name/"json", exist_ok=True)
     # os.makedirs(out_dir/pdf_name/"plot", exist_ok=True)
-
+    
+    if SAVE_PDFS:
+        synthetic_pdfs = [fitz.open() for i in range(SAMPLES_PER_PAGE)]
+    
+    sample_docs = [fitz.open(str(pdf_path)) for _ in range(SAMPLES_PER_PAGE)]
     for page_num in range(page_nums):
+        
         for sample_no in range(SAMPLES_PER_PAGE):
             print(f"{idx+1}/{len(pdf_paths)} {page_num+1}/{page_nums} {sample_no+1}/{SAMPLES_PER_PAGE}  {pdf_path}")
-            doc = fitz.open(str(pdf_path))
+        
+            doc = sample_docs[sample_no]
             page = doc.load_page(page_num)
             
             page, gt = add_fake_data(page)
             gt = scale_coords(gt, page, PAGE_WIDTH, PAGE_HEIGHT)
             img = get_page_raster(page, PAGE_WIDTH, PAGE_HEIGHT)
-            doc.close()
-           
+            
+            if SAVE_PDFS:
+                synthetic_pdfs[sample_no].insert_pdf(doc, from_page=page_num, to_page=page_num)
+
             json.dump(gt, open(out_dir/pdf_name/"json"/f'{page_num+1}_{sample_no}.json', 'w'), indent=4)
             cv2.imwrite(out_dir/pdf_name/"image"/f'{page_num+1}_{sample_no}.jpg', img)
 
@@ -851,5 +860,20 @@ for idx, pdf_path in enumerate(pdf_paths):
             #     cv2.rectangle(img, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
 
             # cv2.imwrite(out_dir/pdf_name/"plot"/f'{page_num+1}_{sample_no}_bbox.jpg', img)
-   
+    
+    for doc in sample_docs:
+        doc.close()       
+    
+    if SAVE_PDFS:
+        for idx, synthetic_pdf in enumerate(synthetic_pdfs):
+            out_pdf_path = out_dir / pdf_name / "pdf" / f'sample_{idx}.pdf'
+            os.makedirs(out_pdf_path.parent, exist_ok=True)
+            for page in synthetic_pdf:
+                for widget in page.widgets():
+                    page.delete_widget(widget)
+            synthetic_pdf.save(out_pdf_path)
+            synthetic_pdf.close()
+            print(f'{idx+1}/{len(synthetic_pdfs)}')
+
+        
 print('Done...!')
