@@ -802,13 +802,13 @@ def add_fake_textfield_data_bak(page: fitz.Page) -> tuple[fitz.Page, dict[str, s
 def add_fake_data(page: fitz.Page) -> tuple[fitz.Page, dict]:
     page, gt_checkboxes = add_random_checkboxes(page, copy_paste=True)
     page, gt_textfield = add_fake_textfield_data(page)
-    # page, gt_signatures = add_signatures_to_textfields(page, signature_enclosure_dir)
-    gt = {**gt_checkboxes, **gt_textfield}#, **gt_signatures} 
+    page, gt_signatures = add_signatures_to_textfields(page, signature_enclosure_dir)
+    gt = {**gt_checkboxes, **gt_textfield, **gt_signatures} 
     return page, gt
 
 
 PAGE_WIDTH, PAGE_HEIGHT = 2048, 2650
-SAMPLES_PER_PAGE = 3
+SAMPLES_PER_PAGE = 5
 SUPPORTED_TYPES = ['checkbox', 'name', 'company', 'date', 'license', 'county', 'city', 
                    'initials', 'address', 'sentence', 'number', 'initials', 'country',
                    'word']
@@ -873,7 +873,7 @@ for idx, pdf_path in enumerate(pdf_paths):
                     page.delete_widget(widget)
             synthetic_pdf.save(out_pdf_path)
             synthetic_pdf.close()
-            print(f'{idx+1}/{len(synthetic_pdfs)}')
+            print(f'saved syn pdf {idx+1}/{len(synthetic_pdfs)}')
 
         
 print('Done...!')
